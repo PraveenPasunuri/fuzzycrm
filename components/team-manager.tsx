@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Camera, Clapperboard, Edit, Plus, Scissors, Trash2, X } from "lucide-react";
+import { CalendarPlus, Camera, Clapperboard, Edit, Plus, Scissors, Trash2, X } from "lucide-react";
 import { deleteRecord, saveRecord } from "@/lib/actions";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
@@ -11,39 +11,64 @@ type Props = {
   shooters: Record<string, any>[];
   editors: Record<string, any>[];
   tasks: Record<string, any>[];
+  events: Record<string, any>[];
 };
 
-const fields = [
+type TeamField = {
+  name: string;
+  label: string;
+  type: string;
+  required?: boolean;
+  options?: string[];
+  placeholder?: string;
+};
+
+const shooterFields: TeamField[] = [
   { name: "name", label: "Name", type: "text", required: true },
-  { name: "role", label: "Role", type: "select", options: ["Shooter", "Editor", "Both"], required: true },
-  { name: "designation", label: "Designation", type: "text", placeholder: "Photo Shooter, Video Shooter, Photo Editor..." },
+  { name: "role", label: "Role", type: "select", options: ["Photo", "Video", "Reel Maker"], required: true },
   { name: "contact_no", label: "Contact no", type: "tel" },
   { name: "email", label: "Email", type: "email" },
   { name: "specialty", label: "Specialty", type: "text" },
-  { name: "total_hours_worked", label: "Total no of hours worked", type: "number" },
+  { name: "google_calendar_link", label: "Google Calendar link", type: "url" },
   { name: "payment_terms", label: "Payment terms", type: "text" },
+  { name: "notes", label: "Notes", type: "textarea" }
+];
+
+const editorFields: TeamField[] = [
+  { name: "name", label: "Name", type: "text", required: true },
+  { name: "role", label: "Role", type: "select", options: ["Photo Editor", "Video Editor", "Reel Editor"], required: true },
+  { name: "contact_no", label: "Contact no", type: "tel" },
+  { name: "alternate_contact_no", label: "Alternate contact no", type: "tel" },
+  { name: "email", label: "Email", type: "email" },
+  { name: "specialty", label: "Specialty", type: "text" },
+  { name: "last_amount_paid", label: "Last amount paid", type: "number" },
   { name: "notes", label: "Notes", type: "textarea" }
 ];
 
 function defaultMember(role: "Shooter" | "Editor") {
   return {
-    role,
-    designation: role === "Shooter" ? "Photo Shooter" : "Photo Editor",
-    total_hours_worked: 0
+    role: role === "Shooter" ? "Photo" : "Photo Editor"
   };
 }
 
-export function TeamManager({ shooters, editors, tasks }: Props) {
+function isEditorRole(role: string) {
+  return role.toLowerCase().includes("editor");
+}
+
+export function TeamManager({ shooters, editors, tasks, events }: Props) {
   const [editing, setEditing] = useState<Record<string, any> | null>(null);
+  const [formKind, setFormKind] = useState<"Shooter" | "Editor">("Shooter");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function addMember(role: "Shooter" | "Editor") {
+    setFormKind(role);
     setEditing(defaultMember(role));
     setOpen(true);
   }
 
   function editMember(member: Record<string, any>) {
+    setFormKind(isEditorRole(String(member.role ?? "")) ? "Editor" : "Shooter");
     setEditing(member);
     setOpen(true);
   }
@@ -58,6 +83,14 @@ export function TeamManager({ shooters, editors, tasks }: Props) {
   function assignedProjects(member: Record<string, any>) {
     return tasks.filter((task) => task.photo_editor_id === member.id || task.video_editor_id === member.id);
   }
+
+  function shooterHours(member: Record<string, any>) {
+    return events
+      .filter((event) => event.photo_shooter_id === member.id || event.video_shooter_id === member.id)
+      .reduce((sum, event) => sum + Number(event.total_initial_hours ?? event.total_hours ?? 0) + Number(event.extra_hours ?? 0), 0);
+  }
+
+  const activeFields = formKind === "Shooter" ? shooterFields : editorFields;
 
   return (
     <div className="space-y-6">
@@ -87,10 +120,16 @@ export function TeamManager({ shooters, editors, tasks }: Props) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-ink">{member.name}</p>
-                      <p className="text-sm text-zinc-500">{member.designation ?? member.specialty ?? "Shooter"}</p>
+                      <p className="text-sm text-zinc-500">{member.role ?? member.specialty ?? "Shooter"}</p>
+                      {member.google_calendar_link ? (
+                        <a className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline" href={member.google_calendar_link} target="_blank" rel="noreferrer">
+                          <CalendarPlus className="h-4 w-4" />
+                          Google Calendar
+                        </a>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-brand">{member.total_hours_worked ?? 0} hrs</p>
+                      <p className="text-sm font-semibold text-brand">{shooterHours(member)} hrs</p>
                       <button aria-label="Edit shooter" title="Edit shooter" onClick={() => editMember(member)} className="rounded-md border border-line p-2 text-zinc-600 hover:bg-mist">
                         <Edit className="h-4 w-4" />
                       </button>
@@ -128,7 +167,9 @@ export function TeamManager({ shooters, editors, tasks }: Props) {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-ink">{member.name}</p>
-                        <p className="text-sm text-zinc-500">{member.designation ?? member.specialty ?? "Editor"}</p>
+                        <p className="text-sm text-zinc-500">{member.role ?? member.specialty ?? "Editor"}</p>
+                        {member.alternate_contact_no ? <p className="mt-1 text-sm text-zinc-500">Alt: {member.alternate_contact_no}</p> : null}
+                        {member.last_amount_paid ? <p className="mt-1 text-sm text-zinc-500">Last paid: ${member.last_amount_paid}</p> : null}
                       </div>
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-brand">{assigned.length} project{assigned.length === 1 ? "" : "s"}</p>
@@ -174,14 +215,14 @@ export function TeamManager({ shooters, editors, tasks }: Props) {
         <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4">
           <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-soft">
             <div className="flex items-center justify-between border-b border-line px-5 py-4">
-              <h3 className="text-lg font-semibold text-ink">{editing?.id ? "Edit" : "Add"} Team Member</h3>
+              <h3 className="text-lg font-semibold text-ink">{editing?.id ? "Edit" : "Add"} {formKind.toLowerCase()}</h3>
               <button aria-label="Close" title="Close" onClick={() => setOpen(false)} className="rounded-md p-2 text-zinc-500 hover:bg-mist">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <form action={saveRecord.bind(null, "editors")} className="grid gap-4 p-5 sm:grid-cols-2">
               <input type="hidden" name="id" value={editing?.id ?? ""} />
-              {fields.map((field) => {
+              {activeFields.map((field) => {
                 const value = editing?.[field.name] ?? "";
                 const common = "mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand";
                 return (

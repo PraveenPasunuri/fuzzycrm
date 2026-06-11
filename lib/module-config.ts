@@ -6,8 +6,10 @@ export type FieldConfig = {
   type: FieldType;
   required?: boolean;
   options?: string[];
+  suggestions?: string[];
   relation?: string;
   placeholder?: string;
+  readOnly?: boolean;
 };
 
 export type ModuleConfig = {
@@ -29,6 +31,37 @@ export const eventStatuses = ["Booked", "Shoot Completed", "Editing", "Delivered
 export const clientStatuses = ["Inquiry", "Pending", "Waiting For Event Date", "Confirmed", "Completed", "Cancelled"];
 export const deliverableStatuses = ["Pending", "In Progress", "Delivered"];
 export const editingStatuses = ["Not Assigned", "Assigned", "In Progress", "Submitted For Editing", "Sent For Review", "Changes Requested", "Completed"];
+export const cityOptions = ["Dallas", "Houston", "San Antonio", "Austin", "Fort Worth", "Frisco", "Plano", "Irving", "Arlington", "McKinney", "Garland", "Denton", "Richardson", "Allen"];
+export const eventTypeOptions = [
+  "Engagement",
+  "Haldi",
+  "Sangeeth",
+  "Bride Ceremony",
+  "Groom Ceremony",
+  "Bride & Groom Ceremony",
+  "Wedding",
+  "Reception",
+  "Vratham",
+  "Gender Reveal",
+  "Babyshower",
+  "Maternity",
+  "Cradle Ceremony",
+  "1st Birthday",
+  "25th Birthday",
+  "50th Birthday",
+  "Corporate Event",
+  "House Warming",
+  "Couple Shoot",
+  "Pre/Post Wedding"
+];
+export const texasLocationSuggestions = [
+  "11505 Harry Hines Blvd, Dallas, TX",
+  "11505 Reeder Rd, Dallas, TX",
+  "11505 Plano Rd, Dallas, TX",
+  "11505 Slater Dr, Balch Springs, TX",
+  "11505 Jones Maltsberger Rd, San Antonio, TX",
+  "11505 North Freeway, Houston, TX"
+];
 
 export const modules: Record<string, ModuleConfig> = {
   clients: {
@@ -45,26 +78,26 @@ export const modules: Record<string, ModuleConfig> = {
       { key: "client_number", label: "Client ID" },
       { key: "host_name", label: "Host" },
       { key: "contact_no", label: "Contact" },
-      { key: "event_type", label: "Event type" },
+      { key: "event_type", label: "Celebration" },
       { key: "event_date", label: "Event date", type: "date" },
       { key: "total_price", label: "Total", type: "currency" },
       { key: "balance_due", label: "Balance", type: "currency" },
       { key: "status", label: "Status", type: "status" }
     ],
     fields: [
-      { name: "client_number", label: "Client ID", type: "number" },
+      { name: "client_number", label: "Client ID", type: "number", readOnly: true, placeholder: "Added after save" },
       { name: "host_name", label: "Host name", type: "text", required: true },
       { name: "contact_no", label: "Contact no", type: "tel" },
       { name: "email", label: "Email", type: "email" },
-      { name: "event_type", label: "Event type", type: "text" },
+      { name: "event_type", label: "Celebration", type: "text" },
       { name: "event_date", label: "Event date", type: "date" },
-      { name: "quoted_hours", label: "Quoted hours", type: "number" },
-      { name: "quoted_price", label: "Quoted price", type: "number" },
+      { name: "quoted_hours", label: "Quoted hours", type: "number", placeholder: "10 hours" },
+      { name: "quoted_price", label: "Quoted price", type: "number", placeholder: "$123" },
       { name: "no_of_events", label: "No of events", type: "number" },
-      { name: "city", label: "City", type: "text" },
-      { name: "total_price", label: "Total price", type: "number" },
+      { name: "city", label: "City", type: "select", options: cityOptions },
+      { name: "total_price", label: "Total price", type: "number", readOnly: true },
       { name: "advance_paid", label: "Advance paid", type: "number" },
-      { name: "balance_due", label: "Balance due", type: "number" },
+      { name: "balance_due", label: "Balance due", type: "number", readOnly: true },
       { name: "deliverables_summary", label: "Deliverables", type: "text", placeholder: "Photos, video, reel..." },
       { name: "data_backup", label: "Data backup", type: "text", placeholder: "Yes, hard disk, cloud..." },
       { name: "status", label: "Status", type: "select", options: clientStatuses },
@@ -83,33 +116,34 @@ export const modules: Record<string, ModuleConfig> = {
     filterField: "status",
     displayField: "event_name",
     relations: {
-      client_id: { table: "clients", label: "host_name", select: "id,host_name,contact_no,client_number" },
-      photo_shooter_id: { table: "team_members", alias: "photo_shooter", label: "name", select: "id,name,role" },
-      video_shooter_id: { table: "team_members", alias: "video_shooter", label: "name", select: "id,name,role" }
+      client_id: { table: "clients", label: "host_name", select: "id,host_name,contact_no,client_number,event_type,no_of_events" },
+      photo_shooter_id: { table: "team_members", alias: "photo_shooter", label: "name", select: "id,name,role,contact_no" },
+      video_shooter_id: { table: "team_members", alias: "video_shooter", label: "name", select: "id,name,role,contact_no" }
     },
     columns: [
-      { key: "event_name", label: "Event" },
+      { key: "event_name", label: "Celebration" },
       { key: "clients.host_name", label: "Client", type: "relation" },
       { key: "event_date", label: "Date", type: "date" },
       { key: "photo_shooter.name", label: "Photo shooter", type: "relation" },
       { key: "video_shooter.name", label: "Video shooter", type: "relation" },
-      { key: "total_hours", label: "Hours" },
+      { key: "total_hours", label: "Total hours" },
       { key: "status", label: "Status", type: "status" }
     ],
     fields: [
-      { name: "event_name", label: "Event name", type: "text", required: true },
+      { name: "event_name", label: "Celebration", type: "text", required: true },
       { name: "client_id", label: "Client", type: "select", relation: "client_id", required: true },
-      { name: "event_type", label: "Event type", type: "text", required: true, placeholder: "Wedding, birthday, corporate..." },
+      { name: "event_type", label: "Event type", type: "select", options: eventTypeOptions, required: true },
       { name: "event_date", label: "Event date", type: "date", required: true },
       { name: "start_time", label: "Start time", type: "time" },
       { name: "end_time", label: "End time", type: "time" },
-      { name: "location", label: "Location", type: "text" },
+      { name: "location", label: "Location", type: "text", suggestions: texasLocationSuggestions, placeholder: "Enter address or ZIP" },
       { name: "photo_shooter_id", label: "Photo shooter assigned", type: "select", relation: "photo_shooter_id" },
       { name: "video_shooter_id", label: "Video shooter assigned", type: "select", relation: "video_shooter_id" },
       { name: "requirement", label: "Requirement", type: "textarea", placeholder: "Photo, video, reel..." },
       { name: "photo_data_uploaded", label: "Photo data uploaded", type: "text", placeholder: "Hard disk, Drive, WeTransfer..." },
       { name: "video_data_uploaded", label: "Video data uploaded", type: "text", placeholder: "Hard disk, Drive, WeTransfer..." },
-      { name: "total_hours", label: "Total hours", type: "number" },
+      { name: "total_initial_hours", label: "Total initial hours", type: "number" },
+      { name: "extra_hours", label: "Extra hours", type: "number" },
       { name: "status", label: "Status", type: "select", options: eventStatuses, required: true }
     ]
   },
