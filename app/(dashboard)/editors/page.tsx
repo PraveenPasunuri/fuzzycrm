@@ -27,8 +27,10 @@ export default async function TeamPage() {
   if (teamError) throw new Error(teamError.message);
   if (taskError) throw new Error(taskError.message);
 
-  const shooters = (team ?? []).filter((member) => isShooter(member));
-  const editors = (team ?? []).filter((member) => isEditor(member));
+  const teamRows = (team ?? []) as Record<string, any>[];
+  const taskRows = (tasks ?? []) as Record<string, any>[];
+  const shooters = teamRows.filter((member) => isShooter(member));
+  const editors = teamRows.filter((member) => isEditor(member));
 
   return (
     <div className="space-y-6">
@@ -73,7 +75,7 @@ export default async function TeamPage() {
               <div className="p-5"><EmptyState title="No editors yet" text="Add team members with Editor, Reel, or Album designation." /></div>
             ) : (
               editors.map((member) => {
-                const assigned = (tasks ?? []).filter((task) => {
+                const assigned = taskRows.filter((task) => {
                   return task.photo_editor_id === member.id || task.video_editor_id === member.id;
                 });
                 return (

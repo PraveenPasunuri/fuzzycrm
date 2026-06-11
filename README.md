@@ -26,7 +26,7 @@ npm install
 -- Paste the contents of supabase/schema.sql
 ```
 
-4. Copy the environment example:
+4. For Supabase-backed data, copy the environment example:
 
 ```bash
 cp .env.local.example .env.local
@@ -38,6 +38,8 @@ cp .env.local.example .env.local
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
+
+If you skip `.env.local`, the app uses a local JSON development database at `data/local-db.json`. The file is created automatically with demo records and is ignored by git.
 
 6. Start the app:
 

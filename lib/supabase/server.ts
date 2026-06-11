@@ -1,7 +1,12 @@
 import { createServerClient, type SetAllCookies } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createLocalClient } from "@/lib/local-db";
 
 export function createClient() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return createLocalClient() as any;
+  }
+
   const cookieStore = cookies();
 
   return createServerClient(

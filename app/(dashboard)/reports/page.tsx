@@ -16,12 +16,16 @@ export default async function ReportsPage() {
     supabase.from("deliverables").select("id", { count: "exact", head: true }).neq("status", "Delivered")
   ]);
 
-  const monthlyRevenue = (monthlyClients.data ?? []).reduce((sum, client) => {
+  const monthlyRows = (monthlyClients.data ?? []) as Record<string, any>[];
+  const pendingRows = (pendingClients.data ?? []) as Record<string, any>[];
+  const editorRows = (editorPayments.data ?? []) as Record<string, any>[];
+
+  const monthlyRevenue = monthlyRows.reduce((sum, client) => {
     const advance = Number(client.advance_paid ?? 0);
     return sum + (advance > 0 ? advance : Number(client.total_price ?? 0));
   }, 0);
-  const pendingBalance = (pendingClients.data ?? []).reduce((sum, client) => sum + Number(client.balance_due ?? 0), 0);
-  const editorDue = (editorPayments.data ?? []).reduce((sum, task) => sum + Number(task.editor_payment ?? 0), 0);
+  const pendingBalance = pendingRows.reduce((sum, client) => sum + Number(client.balance_due ?? 0), 0);
+  const editorDue = editorRows.reduce((sum, task) => sum + Number(task.editor_payment ?? 0), 0);
 
   const reports = [
     { label: "Monthly revenue", value: currency(monthlyRevenue), icon: BarChart3 },

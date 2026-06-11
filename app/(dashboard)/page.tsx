@@ -19,7 +19,7 @@ export default async function DashboardPage() {
     supabase.from("deliverables").select("id", { count: "exact", head: true }).eq("status", "Delivered")
   ]);
 
-  const unassignedEditing = (editingTasks.data ?? []).filter((task) => {
+  const unassignedEditing = ((editingTasks.data ?? []) as Record<string, any>[]).filter((task) => {
     return task.status === "Not Assigned" || !task.photo_editor_id || !task.video_editor_id;
   }).length;
 
