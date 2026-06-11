@@ -8,19 +8,19 @@ export default async function ReportsPage() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
 
-  const [monthlyPayments, pendingPayments, editorPayments, completedEvents, pendingDeliverables] = await Promise.all([
-    supabase.from("payments").select("advance_paid,total_amount,payment_status").gte("updated_at", monthStart).lt("updated_at", nextMonthStart),
-    supabase.from("payments").select("balance_amount").neq("payment_status", "Fully Paid"),
+  const [monthlyClients, pendingClients, editorPayments, completedEvents, pendingDeliverables] = await Promise.all([
+    supabase.from("clients").select("advance_paid,total_price").gte("updated_at", monthStart).lt("updated_at", nextMonthStart),
+    supabase.from("clients").select("balance_due").gt("balance_due", 0),
     supabase.from("editing_tasks").select("editor_payment,status").neq("status", "Completed"),
     supabase.from("events").select("id", { count: "exact", head: true }).in("status", ["Delivered", "Closed"]),
     supabase.from("deliverables").select("id", { count: "exact", head: true }).neq("status", "Delivered")
   ]);
 
-  const monthlyRevenue = (monthlyPayments.data ?? []).reduce((sum, payment) => {
-    if (payment.payment_status === "Fully Paid") return sum + Number(payment.total_amount ?? 0);
-    return sum + Number(payment.advance_paid ?? 0);
+  const monthlyRevenue = (monthlyClients.data ?? []).reduce((sum, client) => {
+    const advance = Number(client.advance_paid ?? 0);
+    return sum + (advance > 0 ? advance : Number(client.total_price ?? 0));
   }, 0);
-  const pendingBalance = (pendingPayments.data ?? []).reduce((sum, payment) => sum + Number(payment.balance_amount ?? 0), 0);
+  const pendingBalance = (pendingClients.data ?? []).reduce((sum, client) => sum + Number(client.balance_due ?? 0), 0);
   const editorDue = (editorPayments.data ?? []).reduce((sum, task) => sum + Number(task.editor_payment ?? 0), 0);
 
   const reports = [
@@ -54,7 +54,7 @@ export default async function ReportsPage() {
       <div className="rounded-lg border border-line bg-white p-5 shadow-soft">
         <h3 className="font-semibold text-ink">Report notes</h3>
         <p className="mt-2 text-sm leading-6 text-zinc-600">
-          Monthly revenue is calculated from payment records updated during the current month. Fully paid records count the full event total; other records count the advance paid. Pending balances and editor payments due are live operational totals.
+          Monthly revenue is calculated from client records updated during the current month. Pending balance comes from client balance due values, and editor payments due are taken from open editing assignments.
         </p>
       </div>
     </div>

@@ -5,29 +5,29 @@ import { createClient } from "@/lib/supabase/server";
 import { prettyDate } from "@/lib/utils";
 
 function isEditor(member: Record<string, any>) {
-  const text = `${member.designation ?? ""} ${member.specialty ?? ""}`.toLowerCase();
-  return text.includes("edit") || text.includes("reel") || text.includes("album");
+  const text = `${member.role ?? ""} ${member.designation ?? ""} ${member.specialty ?? ""}`.toLowerCase();
+  return text.includes("editor") || text.includes("edit") || text.includes("reel") || text.includes("album") || text.includes("both");
 }
 
 function isShooter(member: Record<string, any>) {
-  const text = `${member.designation ?? ""} ${member.specialty ?? ""}`.toLowerCase();
-  return text.includes("photo") || text.includes("video") || text.includes("shoot");
+  const text = `${member.role ?? ""} ${member.designation ?? ""} ${member.specialty ?? ""}`.toLowerCase();
+  return text.includes("shooter") || text.includes("photo") || text.includes("video") || text.includes("shoot") || text.includes("both");
 }
 
 export default async function TeamPage() {
   const supabase = createClient();
   const [{ data: team, error: teamError }, { data: tasks, error: taskError }] = await Promise.all([
-    supabase.from("editors").select("*").order("name"),
+    supabase.from("team_members").select("*").order("name"),
     supabase
       .from("editing_tasks")
-      .select("id,editor_id,task_type,status,photo_editor_assigned,video_editor_assigned,delivery_date,events:event_id(event_name,event_date),clients:client_id(name),editors:editor_id(name)")
+      .select("id,photo_editor_id,video_editor_id,task_type,status,delivery_date,events:event_id(event_name,event_date),clients:client_id(host_name),photo_editor:photo_editor_id(name),video_editor:video_editor_id(name)")
       .order("delivery_date", { ascending: true })
   ]);
 
   if (teamError) throw new Error(teamError.message);
   if (taskError) throw new Error(taskError.message);
 
-  const shooters = (team ?? []).filter((member) => isShooter(member) && !isEditor(member));
+  const shooters = (team ?? []).filter((member) => isShooter(member));
   const editors = (team ?? []).filter((member) => isEditor(member));
 
   return (
@@ -56,7 +56,7 @@ export default async function TeamPage() {
                     </div>
                     <p className="text-sm font-semibold text-brand">{member.total_hours_worked ?? 0} hrs</p>
                   </div>
-                  <p className="mt-2 text-sm text-zinc-500">{member.phone ?? "No phone"}</p>
+                  <p className="mt-2 text-sm text-zinc-500">{member.contact_no ?? "No contact"}</p>
                 </div>
               ))
             )}
@@ -74,7 +74,7 @@ export default async function TeamPage() {
             ) : (
               editors.map((member) => {
                 const assigned = (tasks ?? []).filter((task) => {
-                  return task.editor_id === member.id || task.photo_editor_assigned === member.name || task.video_editor_assigned === member.name;
+                  return task.photo_editor_id === member.id || task.video_editor_id === member.id;
                 });
                 return (
                   <div key={member.id} className="px-5 py-4">
@@ -93,7 +93,7 @@ export default async function TeamPage() {
                               <div>
                                 <p className="flex items-center gap-2 text-sm font-semibold text-ink">
                                   <Clapperboard className="h-4 w-4 text-zinc-500" />
-                                  {(task.events as any)?.event_name ?? (task.clients as any)?.name ?? task.task_type}
+                                  {(task.events as any)?.event_name ?? (task.clients as any)?.host_name ?? task.task_type}
                                 </p>
                                 <p className="mt-1 text-xs text-zinc-500">
                                   {task.task_type} · delivery {prettyDate(task.delivery_date)}

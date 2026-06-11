@@ -1,13 +1,13 @@
 # Photography Admin Portal
 
-A practical full-stack MVP for a photography business. It tracks clients, event schedules, payments, deliverables, outsourced editors, editing tasks, and reports in a single Next.js App Router repo.
+A practical full-stack MVP for a photography business. It tracks clients, event schedules, quote/payment totals, deliverables, shooters, editors, and editing assignments in a single Next.js App Router repo.
 
 ## Stack
 
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
-- Supabase Auth and Postgres
+- Supabase Postgres
 - Deployable to Vercel
 
 ## Local Setup
@@ -32,14 +32,14 @@ npm install
 cp .env.local.example .env.local
 ```
 
-7. Fill in `.env.local`:
+5. Fill in `.env.local`:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-5. Start the app:
+6. Start the app:
 
 ```bash
 npm run dev
@@ -50,8 +50,10 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Features
 
 - Public admin workspace without a login gate
-- Dashboard summary cards, recent events, and overdue payments/deliverables
-- CRUD modules for clients, events, payments, deliverables, editors, and editing tasks
+- Dashboard tiles for total clients, pending clients, upcoming events, unassigned editing, pending deliverables, and delivered work
+- CRUD modules for clients, events, deliverables, team members, and editing tasks
+- Client records include quoted hours, quoted price, total price, advance paid, and balance due
+- Event tiles grouped by host with photo/video shooter assignment and WhatsApp confirmation links
 - Search, status filters, validation, status badges, delete confirmation, and empty states
 - Reports for monthly revenue, pending balance, editor payments due, completed events, and pending deliverables
 - Google Drive or delivery links are stored as URLs; no large media upload flow is included

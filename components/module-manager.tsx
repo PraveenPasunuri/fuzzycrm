@@ -77,8 +77,8 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
       const isUnassignedEvent =
         config.slug !== "events" ||
         assignmentFilter !== "unassigned" ||
-        !row.photo_shooter_assigned ||
-        !row.video_shooter_assigned;
+        !row.photo_shooter_id ||
+        !row.video_shooter_id;
       return matchesQuery && matchesFilter && matchesGroup && isUnassignedEvent;
     });
   }, [assignmentFilter, config, filter, groupFilter, query, rows]);
@@ -88,11 +88,11 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
     const groups = new Map<string, EventGroup>();
     for (const row of visibleRows) {
       const client = row.clients ?? {};
-      const key = row.client_id ?? client.name ?? row.id;
+      const key = row.client_id ?? client.host_name ?? row.id;
       const current: EventGroup = groups.get(String(key)) ?? {
         key: String(key),
-        host: client.name ?? "No host",
-        phone: client.phone ?? "",
+        host: client.host_name ?? "No host",
+        phone: client.contact_no ?? "",
         rows: []
       };
       current.rows.push(row);
@@ -192,7 +192,7 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                 {isExpanded ? (
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     {group.rows.map((event) => {
-                      const message = `Hi, confirming assignment for ${event.event_name ?? "event"} on ${prettyDate(event.event_date)} at ${event.location ?? "the venue"}. Photo shooter: ${event.photo_shooter_assigned ?? "TBD"}. Video shooter: ${event.video_shooter_assigned ?? "TBD"}.`;
+                      const message = `Hi, confirming assignment for ${event.event_name ?? "event"} on ${prettyDate(event.event_date)} at ${event.location ?? "the venue"}. Photo shooter: ${event.photo_shooter?.name ?? "TBD"}. Video shooter: ${event.video_shooter?.name ?? "TBD"}.`;
                       const phone = String(group.phone ?? "").replace(/\D/g, "");
                       const whatsappHref = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : `https://wa.me/?text=${encodeURIComponent(message)}`;
                       return (
@@ -206,11 +206,11 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                           </div>
                           <p className="mt-3 flex items-start gap-1 text-sm text-zinc-600"><MapPin className="mt-0.5 h-4 w-4 shrink-0" />{event.location ?? "No location"}</p>
                           <div className="mt-3 grid gap-2 text-sm text-zinc-600">
-                            <p><span className="font-medium text-ink">Photo shooter:</span> {event.photo_shooter_assigned ?? "Unassigned"}</p>
-                            <p><span className="font-medium text-ink">Video shooter:</span> {event.video_shooter_assigned ?? "Unassigned"}</p>
+                            <p><span className="font-medium text-ink">Photo shooter:</span> {event.photo_shooter?.name ?? "Unassigned"}</p>
+                            <p><span className="font-medium text-ink">Video shooter:</span> {event.video_shooter?.name ?? "Unassigned"}</p>
                             <p><span className="font-medium text-ink">Requirement:</span> {event.requirement ?? "-"}</p>
                           </div>
-                          {event.photo_shooter_assigned || event.video_shooter_assigned ? (
+                          {event.photo_shooter_id || event.video_shooter_id ? (
                             <a href={whatsappHref} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
                               <MessageCircle className="h-4 w-4" />
                               Send confirmation
@@ -290,7 +290,7 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                         {field.relation
                           ? (relationOptions[field.relation] ?? []).map((option) => (
                               <option key={option.id} value={option.id}>
-                                {option.name ?? option.event_name}
+                                {option.name ?? option.host_name ?? option.event_name}
                               </option>
                             ))
                           : field.options?.map((option) => (

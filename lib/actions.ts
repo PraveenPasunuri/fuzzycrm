@@ -27,12 +27,6 @@ function payloadFor(slug: string, formData: FormData) {
     payload[field.name] = field.type === "number" && value !== null ? Number(value) : value;
   }
 
-  if (slug === "payments") {
-    const total = Number(payload.total_amount ?? 0);
-    const advance = Number(payload.advance_paid ?? 0);
-    payload.balance_amount = payload.balance_amount === null ? Math.max(total - advance, 0) : payload.balance_amount;
-  }
-
   if (slug === "clients") {
     const quotedHours = Number(payload.quoted_hours ?? 0);
     const quotedPrice = Number(payload.quoted_price ?? 0);
@@ -67,10 +61,4 @@ export async function deleteRecord(slug: string, id: string) {
   const { error } = await supabase.from(config.table).delete().eq("id", uuidSchema.parse(id));
   if (error) throw new Error(error.message);
   revalidatePath(`/${slug}`);
-}
-
-export async function signOut() {
-  const supabase = createClient();
-  await supabase.auth.signOut();
-  redirect("/login");
 }

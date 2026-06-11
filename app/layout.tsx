@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Photography Admin",
-  description: "Admin CRM for photography events, payments, deliverables, and editing work"
+  description: "Public photography CRM for clients, events, deliverables, team, and editing work"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

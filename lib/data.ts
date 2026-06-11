@@ -6,7 +6,7 @@ export type Row = Record<string, any>;
 export async function getModuleData(config: ModuleConfig) {
   const supabase = createClient();
   const relationSelect = config.relations
-    ? Object.entries(config.relations).map(([field, relation]) => `${relation.table}:${field}(${relation.select})`)
+    ? Object.entries(config.relations).map(([field, relation]) => `${relation.alias ?? relation.table}:${field}(${relation.select})`)
     : [];
 
   const [{ data, error }, relationEntries] = await Promise.all([

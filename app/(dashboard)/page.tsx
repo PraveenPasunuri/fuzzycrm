@@ -14,13 +14,13 @@ export default async function DashboardPage() {
     supabase.from("clients").select("id", { count: "exact", head: true }),
     supabase.from("clients").select("id", { count: "exact", head: true }).in("status", ["Inquiry", "Pending", "Waiting For Event Date"]),
     supabase.from("events").select("id", { count: "exact", head: true }).gte("event_date", today).gte("event_date", yearStart).lte("event_date", yearEnd),
-    supabase.from("editing_tasks").select("id,photo_editor_assigned,video_editor_assigned,status"),
+    supabase.from("editing_tasks").select("id,photo_editor_id,video_editor_id,status"),
     supabase.from("deliverables").select("id", { count: "exact", head: true }).neq("status", "Delivered"),
     supabase.from("deliverables").select("id", { count: "exact", head: true }).eq("status", "Delivered")
   ]);
 
   const unassignedEditing = (editingTasks.data ?? []).filter((task) => {
-    return task.status === "Not Assigned" || !task.photo_editor_assigned || !task.video_editor_assigned;
+    return task.status === "Not Assigned" || !task.photo_editor_id || !task.video_editor_id;
   }).length;
 
   const tiles = [
