@@ -159,7 +159,6 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
         <div className="grid gap-4">
           {eventGroups.map((group) => {
             const isExpanded = expandedGroups[group.key] ?? group.rows.length === 1;
-            const primary = group.rows[0];
             return (
               <div key={group.key} className="rounded-lg border border-line bg-white p-4 shadow-soft">
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
@@ -181,12 +180,6 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                         {isExpanded ? "Collapse" : "Expand"}
                       </button>
                     ) : null}
-                    <button aria-label="Edit" title="Edit" onClick={() => openEdit(primary)} className="rounded-md border border-line p-2 text-zinc-600 hover:bg-mist">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button aria-label="Delete" title="Delete" disabled={isPending} onClick={() => remove(primary)} className="rounded-md border border-line p-2 text-rose-600 hover:bg-rose-50">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
                 {isExpanded ? (
@@ -202,7 +195,15 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                               <p className="font-semibold text-ink">{event.event_name}</p>
                               <p className="mt-1 flex items-center gap-1 text-sm text-zinc-500"><CalendarDays className="h-4 w-4" />{prettyDate(event.event_date)}</p>
                             </div>
-                            {event.status ? <StatusBadge value={String(event.status)} /> : null}
+                            <div className="flex items-center gap-2">
+                              {event.status ? <StatusBadge value={String(event.status)} /> : null}
+                              <button aria-label="Edit event" title="Edit event" onClick={() => openEdit(event)} className="rounded-md border border-line bg-white p-2 text-zinc-600 hover:bg-mist">
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button aria-label="Delete event" title="Delete event" disabled={isPending} onClick={() => remove(event)} className="rounded-md border border-line bg-white p-2 text-rose-600 hover:bg-rose-50">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           </div>
                           <p className="mt-3 flex items-start gap-1 text-sm text-zinc-600"><MapPin className="mt-0.5 h-4 w-4 shrink-0" />{event.location ?? "No location"}</p>
                           <div className="mt-3 grid gap-2 text-sm text-zinc-600">
