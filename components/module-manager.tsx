@@ -14,13 +14,18 @@ type Props = {
   relationOptions: Record<string, Record<string, any>[]>;
 };
 
-function getValue(row: Record<string, any>, key: string) {
-  return key.split(".").reduce((value, part) => value?.[part], row);
+function getValue(row: Record<string, any>, key: string): unknown {
+  return key.split(".").reduce<unknown>((value, part) => {
+    if (value && typeof value === "object") {
+      return (value as Record<string, unknown>)[part];
+    }
+    return undefined;
+  }, row);
 }
 
 function formatCell(row: Record<string, any>, column: ModuleConfig["columns"][number]) {
   const value = getValue(row, column.key);
-  if (column.type === "currency") return currency(value);
+  if (column.type === "currency") return currency(typeof value === "number" || typeof value === "string" ? value : null);
   if (column.type === "date") return prettyDate(String(value ?? ""));
   if (column.type === "status" && value) return <StatusBadge value={String(value)} />;
   if (String(value ?? "").startsWith("http")) {
@@ -30,7 +35,7 @@ function formatCell(row: Record<string, any>, column: ModuleConfig["columns"][nu
       </a>
     );
   }
-  return value || "-";
+  return value ? String(value) : "-";
 }
 
 export function ModuleManager({ config, rows, relationOptions }: Props) {
