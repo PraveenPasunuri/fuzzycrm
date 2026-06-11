@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, CheckSquare, CreditCard, LayoutDashboard, LogOut, Scissors, Truck, Users } from "lucide-react";
-import { signOut } from "@/lib/actions";
+import { CalendarDays, CheckSquare, CreditCard, LayoutDashboard, Scissors, Truck, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -45,12 +44,9 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <form action={signOut} className="mt-auto border-t border-line p-3">
-        <button className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-600 hover:bg-mist hover:text-ink">
-          <LogOut className="h-4 w-4" aria-hidden="true" />
-          Sign out
-        </button>
-      </form>
+      <div className="mt-auto border-t border-line p-5 text-xs leading-5 text-zinc-500">
+        Public admin workspace
+      </div>
     </aside>
   );
 }

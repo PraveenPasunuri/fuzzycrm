@@ -152,41 +152,47 @@ drop policy if exists "Admins manage payments" on public.payments;
 drop policy if exists "Admins manage deliverables" on public.deliverables;
 drop policy if exists "Admins manage editors" on public.editors;
 drop policy if exists "Admins manage editing tasks" on public.editing_tasks;
+drop policy if exists "Public portal can read admin users" on public.admin_users;
+drop policy if exists "Public portal manages clients" on public.clients;
+drop policy if exists "Public portal manages events" on public.events;
+drop policy if exists "Public portal manages payments" on public.payments;
+drop policy if exists "Public portal manages deliverables" on public.deliverables;
+drop policy if exists "Public portal manages editors" on public.editors;
+drop policy if exists "Public portal manages editing tasks" on public.editing_tasks;
 
-create policy "Admins can read admin users" on public.admin_users
-  for select to authenticated
-  using (public.is_admin());
+create policy "Public portal can read admin users" on public.admin_users
+  for select to anon, authenticated
+  using (true);
 
-create policy "Admins manage clients" on public.clients
-  for all to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+create policy "Public portal manages clients" on public.clients
+  for all to anon, authenticated
+  using (true)
+  with check (true);
 
-create policy "Admins manage events" on public.events
-  for all to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+create policy "Public portal manages events" on public.events
+  for all to anon, authenticated
+  using (true)
+  with check (true);
 
-create policy "Admins manage payments" on public.payments
-  for all to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+create policy "Public portal manages payments" on public.payments
+  for all to anon, authenticated
+  using (true)
+  with check (true);
 
-create policy "Admins manage deliverables" on public.deliverables
-  for all to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+create policy "Public portal manages deliverables" on public.deliverables
+  for all to anon, authenticated
+  using (true)
+  with check (true);
 
-create policy "Admins manage editors" on public.editors
-  for all to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+create policy "Public portal manages editors" on public.editors
+  for all to anon, authenticated
+  using (true)
+  with check (true);
 
-create policy "Admins manage editing tasks" on public.editing_tasks
-  for all to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+create policy "Public portal manages editing tasks" on public.editing_tasks
+  for all to anon, authenticated
+  using (true)
+  with check (true);
 
--- After creating an auth user in Supabase Auth, add them as an admin:
--- insert into public.admin_users (user_id, email)
--- values ('00000000-0000-0000-0000-000000000000', 'admin@example.com');
+-- This MVP is currently configured for public portal access.
+-- Restore admin-only RLS policies before storing private business data.

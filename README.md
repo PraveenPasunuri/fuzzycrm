@@ -26,27 +26,7 @@ npm install
 -- Paste the contents of supabase/schema.sql
 ```
 
-4. Create the default super user by running:
-
-```sql
--- Paste the contents of supabase/seed-superuser.sql
-```
-
-Default login:
-
-```text
-Username: praveen
-Password: Admin123
-```
-
-5. To add another admin manually, create a Supabase Auth user and add that auth user to `public.admin_users`:
-
-```sql
-insert into public.admin_users (user_id, email)
-values ('AUTH_USER_ID_FROM_SUPABASE', 'admin@example.com');
-```
-
-6. Copy the environment example:
+4. Copy the environment example:
 
 ```bash
 cp .env.local.example .env.local
@@ -57,11 +37,9 @@ cp .env.local.example .env.local
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-ADMIN_EMAIL=praveen@fuzzycrm.local
-NEXT_PUBLIC_SUPER_USER_EMAIL=praveen@fuzzycrm.local
 ```
 
-8. Start the app:
+5. Start the app:
 
 ```bash
 npm run dev
@@ -71,11 +49,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Features
 
-- Admin login via Supabase email/password auth
-- Default super-user username `praveen`
-- Email/password signup with Supabase email confirmation
-- Protected dashboard routes with unauthenticated redirect to `/login`
-- Optional `ADMIN_EMAIL` middleware check
+- Public admin workspace without a login gate
 - Dashboard summary cards, recent events, and overdue payments/deliverables
 - CRUD modules for clients, events, payments, deliverables, editors, and editing tasks
 - Search, status filters, validation, status badges, delete confirmation, and empty states
@@ -89,10 +63,8 @@ Open [http://localhost:3000](http://localhost:3000).
 3. Add these environment variables in Vercel:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `ADMIN_EMAIL`
-   - `NEXT_PUBLIC_SUPER_USER_EMAIL`
 4. Deploy.
 
 ## Notes
 
-RLS is enforced by `public.admin_users`. The app also supports a belt-and-suspenders `ADMIN_EMAIL` check in middleware. For multiple admins, leave `ADMIN_EMAIL` blank and add each Supabase auth user to `public.admin_users`.
+The app is currently configured as a public admin workspace. Supabase Row Level Security policies in `supabase/schema.sql` allow anonymous users to manage the MVP tables. Put the app behind Vercel protection or restore auth before using it for private business data.
