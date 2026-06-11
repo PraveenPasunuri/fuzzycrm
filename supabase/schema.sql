@@ -145,6 +145,14 @@ alter table public.deliverables enable row level security;
 alter table public.editors enable row level security;
 alter table public.editing_tasks enable row level security;
 
+drop policy if exists "Admins can read admin users" on public.admin_users;
+drop policy if exists "Admins manage clients" on public.clients;
+drop policy if exists "Admins manage events" on public.events;
+drop policy if exists "Admins manage payments" on public.payments;
+drop policy if exists "Admins manage deliverables" on public.deliverables;
+drop policy if exists "Admins manage editors" on public.editors;
+drop policy if exists "Admins manage editing tasks" on public.editing_tasks;
+
 create policy "Admins can read admin users" on public.admin_users
   for select to authenticated
   using (public.is_admin());
