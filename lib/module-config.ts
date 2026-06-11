@@ -26,7 +26,7 @@ export type ModuleConfig = {
 };
 
 export const eventStatuses = ["Booked", "Shoot Completed", "Editing", "Delivered", "Closed"];
-export const clientStatuses = ["Inquiry", "Confirmed", "Completed", "Cancelled"];
+export const clientStatuses = ["Inquiry", "Pending", "Waiting For Event Date", "Confirmed", "Completed", "Cancelled"];
 export const paymentStatuses = ["Not Paid", "Advance Paid", "Partially Paid", "Fully Paid"];
 export const deliverableStatuses = ["Pending", "In Progress", "Delivered"];
 export const editingStatuses = ["Not Assigned", "Assigned", "In Progress", "Submitted For Editing", "Sent For Review", "Changes Requested", "Completed"];
@@ -84,7 +84,7 @@ export const modules: Record<string, ModuleConfig> = {
     filterField: "status",
     displayField: "event_name",
     relations: {
-      client_id: { table: "clients", label: "name", select: "id,name" }
+      client_id: { table: "clients", label: "name", select: "id,name,phone,client_number" }
     },
     columns: [
       { key: "event_name", label: "Event" },
