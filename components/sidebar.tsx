@@ -11,7 +11,7 @@ const nav = [
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/payments", label: "Payments", icon: CreditCard },
   { href: "/deliverables", label: "Deliverables", icon: Truck },
-  { href: "/editors", label: "Editors", icon: Scissors },
+  { href: "/editors", label: "Team", icon: Scissors },
   { href: "/editing-tasks", label: "Editing Tasks", icon: CheckSquare },
   { href: "/reports", label: "Reports", icon: LayoutDashboard }
 ];

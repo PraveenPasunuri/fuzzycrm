@@ -31,9 +31,22 @@ $$;
 
 create table if not exists public.clients (
   id uuid primary key default gen_random_uuid(),
+  client_number integer,
   name text not null,
   phone text,
   email text,
+  event_type text,
+  event_date date,
+  quoted_hours numeric(10,2),
+  quoted_price numeric(12,2),
+  no_of_events integer,
+  city text,
+  total_price numeric(12,2),
+  advance_paid numeric(12,2),
+  balance_due numeric(12,2),
+  deliverables text,
+  data_backup text,
+  status text,
   address text,
   notes text,
   created_at timestamptz not null default now(),
@@ -49,6 +62,12 @@ create table if not exists public.events (
   start_time time,
   end_time time,
   location text,
+  photo_shooter_assigned text,
+  video_shooter_assigned text,
+  requirement text,
+  photo_data_uploaded text,
+  video_data_uploaded text,
+  total_hours numeric(10,2),
   package_name text,
   total_amount numeric(12,2) not null default 0,
   status text not null default 'Booked' check (status in ('Booked', 'Shoot Completed', 'Editing', 'Delivered', 'Closed')),
@@ -87,7 +106,9 @@ create table if not exists public.editors (
   name text not null,
   phone text,
   email text,
+  designation text,
   specialty text,
+  total_hours_worked numeric(10,2),
   payment_terms text,
   notes text,
   created_at timestamptz not null default now(),
@@ -96,19 +117,58 @@ create table if not exists public.editors (
 
 create table if not exists public.editing_tasks (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid not null references public.events(id) on delete cascade,
+  client_id uuid references public.clients(id) on delete cascade,
+  event_id uuid references public.events(id) on delete cascade,
   editor_id uuid references public.editors(id) on delete set null,
   task_type text not null check (task_type in ('Photo Editing', 'Video Editing', 'Reel Editing', 'Album Design')),
+  photo_editor_assigned text,
+  video_editor_assigned text,
   assigned_date date,
+  submitted_date date,
+  delivery_date date,
   expected_delivery_date date,
   editor_payment numeric(12,2) not null default 0,
   source_file_link text,
   output_file_link text,
-  status text not null default 'Not Assigned' check (status in ('Not Assigned', 'Assigned', 'In Progress', 'Sent For Review', 'Changes Requested', 'Completed')),
+  status text not null default 'Not Assigned' check (status in ('Not Assigned', 'Assigned', 'In Progress', 'Submitted For Editing', 'Sent For Review', 'Changes Requested', 'Completed')),
   review_notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.clients add column if not exists client_number integer;
+alter table public.clients add column if not exists event_type text;
+alter table public.clients add column if not exists event_date date;
+alter table public.clients add column if not exists quoted_hours numeric(10,2);
+alter table public.clients add column if not exists quoted_price numeric(12,2);
+alter table public.clients add column if not exists no_of_events integer;
+alter table public.clients add column if not exists city text;
+alter table public.clients add column if not exists total_price numeric(12,2);
+alter table public.clients add column if not exists advance_paid numeric(12,2);
+alter table public.clients add column if not exists balance_due numeric(12,2);
+alter table public.clients add column if not exists deliverables text;
+alter table public.clients add column if not exists data_backup text;
+alter table public.clients add column if not exists status text;
+
+alter table public.events add column if not exists photo_shooter_assigned text;
+alter table public.events add column if not exists video_shooter_assigned text;
+alter table public.events add column if not exists requirement text;
+alter table public.events add column if not exists photo_data_uploaded text;
+alter table public.events add column if not exists video_data_uploaded text;
+alter table public.events add column if not exists total_hours numeric(10,2);
+
+alter table public.editors add column if not exists designation text;
+alter table public.editors add column if not exists total_hours_worked numeric(10,2);
+
+alter table public.editing_tasks add column if not exists client_id uuid references public.clients(id) on delete cascade;
+alter table public.editing_tasks alter column event_id drop not null;
+alter table public.editing_tasks add column if not exists photo_editor_assigned text;
+alter table public.editing_tasks add column if not exists video_editor_assigned text;
+alter table public.editing_tasks add column if not exists submitted_date date;
+alter table public.editing_tasks add column if not exists delivery_date date;
+alter table public.editing_tasks drop constraint if exists editing_tasks_status_check;
+alter table public.editing_tasks add constraint editing_tasks_status_check
+  check (status in ('Not Assigned', 'Assigned', 'In Progress', 'Submitted For Editing', 'Sent For Review', 'Changes Requested', 'Completed'));
 
 create index if not exists idx_events_client_id on public.events(client_id);
 create index if not exists idx_events_event_date on public.events(event_date);
@@ -117,6 +177,7 @@ create index if not exists idx_payments_due_date on public.payments(payment_due_
 create index if not exists idx_deliverables_event_id on public.deliverables(event_id);
 create index if not exists idx_deliverables_due_date on public.deliverables(due_date);
 create index if not exists idx_editing_tasks_event_id on public.editing_tasks(event_id);
+create index if not exists idx_editing_tasks_client_id on public.editing_tasks(client_id);
 create index if not exists idx_editing_tasks_editor_id on public.editing_tasks(editor_id);
 
 drop trigger if exists set_clients_updated_at on public.clients;

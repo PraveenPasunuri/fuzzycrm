@@ -26,29 +26,49 @@ export type ModuleConfig = {
 };
 
 export const eventStatuses = ["Booked", "Shoot Completed", "Editing", "Delivered", "Closed"];
+export const clientStatuses = ["Inquiry", "Confirmed", "Completed", "Cancelled"];
 export const paymentStatuses = ["Not Paid", "Advance Paid", "Partially Paid", "Fully Paid"];
 export const deliverableStatuses = ["Pending", "In Progress", "Delivered"];
-export const editingStatuses = ["Not Assigned", "Assigned", "In Progress", "Sent For Review", "Changes Requested", "Completed"];
+export const editingStatuses = ["Not Assigned", "Assigned", "In Progress", "Submitted For Editing", "Sent For Review", "Changes Requested", "Completed"];
 
 export const modules: Record<string, ModuleConfig> = {
   clients: {
     slug: "clients",
     title: "Clients",
     table: "clients",
-    description: "Manage client contacts, addresses, and notes.",
+    description: "Manage client details, quote totals, advances, deliverables, backup, and status.",
     orderBy: "created_at",
-    searchFields: ["name", "phone", "email", "address"],
+    searchFields: ["client_number", "name", "phone", "email", "event_type", "city", "deliverables", "status"],
+    statusField: "status",
+    filterField: "status",
     displayField: "name",
     columns: [
+      { key: "client_number", label: "Client ID" },
       { key: "name", label: "Client" },
       { key: "phone", label: "Phone" },
-      { key: "email", label: "Email" },
-      { key: "created_at", label: "Created", type: "date" }
+      { key: "event_type", label: "Event type" },
+      { key: "event_date", label: "Event date", type: "date" },
+      { key: "total_price", label: "Total", type: "currency" },
+      { key: "balance_due", label: "Balance", type: "currency" },
+      { key: "status", label: "Status", type: "status" }
     ],
     fields: [
+      { name: "client_number", label: "Client ID", type: "number" },
       { name: "name", label: "Client name", type: "text", required: true },
-      { name: "phone", label: "Phone", type: "tel" },
+      { name: "phone", label: "Contact no", type: "tel" },
       { name: "email", label: "Email", type: "email" },
+      { name: "event_type", label: "Event type", type: "text" },
+      { name: "event_date", label: "Event date", type: "date" },
+      { name: "quoted_hours", label: "Quoted hours", type: "number" },
+      { name: "quoted_price", label: "Quoted price", type: "number" },
+      { name: "no_of_events", label: "No of events", type: "number" },
+      { name: "city", label: "City", type: "text" },
+      { name: "total_price", label: "Total price", type: "number" },
+      { name: "advance_paid", label: "Advance paid", type: "number" },
+      { name: "balance_due", label: "Balance due", type: "number" },
+      { name: "deliverables", label: "Deliverables", type: "text", placeholder: "Photos, video, reel..." },
+      { name: "data_backup", label: "Data backup", type: "text", placeholder: "Yes, hard disk, cloud..." },
+      { name: "status", label: "Status", type: "select", options: clientStatuses },
       { name: "address", label: "Address", type: "textarea" },
       { name: "notes", label: "Notes", type: "textarea" }
     ]
@@ -57,9 +77,9 @@ export const modules: Record<string, ModuleConfig> = {
     slug: "events",
     title: "Events",
     table: "events",
-    description: "Track booked shoots, schedules, packages, and lifecycle status.",
+    description: "Track event schedule, location, shooters, requirements, data uploads, and hours.",
     orderBy: "event_date",
-    searchFields: ["event_name", "event_type", "location", "package_name", "clients.name"],
+    searchFields: ["event_name", "event_type", "location", "photo_shooter_assigned", "video_shooter_assigned", "requirement", "clients.name"],
     statusField: "status",
     filterField: "status",
     displayField: "event_name",
@@ -70,7 +90,9 @@ export const modules: Record<string, ModuleConfig> = {
       { key: "event_name", label: "Event" },
       { key: "clients.name", label: "Client", type: "relation" },
       { key: "event_date", label: "Date", type: "date" },
-      { key: "total_amount", label: "Total", type: "currency" },
+      { key: "photo_shooter_assigned", label: "Photo shooter" },
+      { key: "video_shooter_assigned", label: "Video shooter" },
+      { key: "total_hours", label: "Hours" },
       { key: "status", label: "Status", type: "status" }
     ],
     fields: [
@@ -81,6 +103,12 @@ export const modules: Record<string, ModuleConfig> = {
       { name: "start_time", label: "Start time", type: "time" },
       { name: "end_time", label: "End time", type: "time" },
       { name: "location", label: "Location", type: "text" },
+      { name: "photo_shooter_assigned", label: "Photo shooter assigned", type: "text" },
+      { name: "video_shooter_assigned", label: "Video shooter assigned", type: "text" },
+      { name: "requirement", label: "Requirement", type: "textarea", placeholder: "Photo, video, reel..." },
+      { name: "photo_data_uploaded", label: "Photo data uploaded", type: "text", placeholder: "Hard disk, Drive, WeTransfer..." },
+      { name: "video_data_uploaded", label: "Video data uploaded", type: "text", placeholder: "Hard disk, Drive, WeTransfer..." },
+      { name: "total_hours", label: "Total hours", type: "number" },
       { name: "package_name", label: "Package name", type: "text" },
       { name: "total_amount", label: "Total amount", type: "number" },
       { name: "status", label: "Status", type: "select", options: eventStatuses, required: true }
@@ -149,24 +177,26 @@ export const modules: Record<string, ModuleConfig> = {
   },
   editors: {
     slug: "editors",
-    title: "Editors",
+    title: "Team",
     table: "editors",
-    description: "Manage outsourced editor contacts, specialties, and terms.",
+    description: "Manage photographers, videographers, editors, and total hours worked.",
     orderBy: "created_at",
-    searchFields: ["name", "phone", "email", "specialty", "payment_terms"],
+    searchFields: ["name", "phone", "email", "designation", "specialty", "payment_terms"],
     displayField: "name",
     columns: [
-      { key: "name", label: "Editor" },
+      { key: "name", label: "Name" },
+      { key: "designation", label: "Designation" },
       { key: "phone", label: "Phone" },
-      { key: "email", label: "Email" },
       { key: "specialty", label: "Specialty" },
-      { key: "payment_terms", label: "Payment terms" }
+      { key: "total_hours_worked", label: "Hours worked" }
     ],
     fields: [
-      { name: "name", label: "Editor name", type: "text", required: true },
-      { name: "phone", label: "Phone", type: "tel" },
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "designation", label: "Designation", type: "text", placeholder: "Photo, Video, Photo Editor..." },
+      { name: "phone", label: "Contact no", type: "tel" },
       { name: "email", label: "Email", type: "email" },
       { name: "specialty", label: "Specialty", type: "text" },
+      { name: "total_hours_worked", label: "Total no of hours worked", type: "number" },
       { name: "payment_terms", label: "Payment terms", type: "text" },
       { name: "notes", label: "Notes", type: "textarea" }
     ]
@@ -175,29 +205,36 @@ export const modules: Record<string, ModuleConfig> = {
     slug: "editing-tasks",
     title: "Editing Tasks",
     table: "editing_tasks",
-    description: "Assign outsourced edits and track review status, file links, and payments.",
+    description: "Track client editing assignments, submitted dates, delivery dates, review notes, and files.",
     orderBy: "expected_delivery_date",
-    searchFields: ["events.event_name", "editors.name", "task_type", "source_file_link", "output_file_link", "review_notes"],
+    searchFields: ["clients.name", "events.event_name", "editors.name", "task_type", "photo_editor_assigned", "video_editor_assigned", "source_file_link", "output_file_link", "review_notes"],
     statusField: "status",
     filterField: "status",
     displayField: "task_type",
     relations: {
+      client_id: { table: "clients", label: "name", select: "id,name,client_number" },
       event_id: { table: "events", label: "event_name", select: "id,event_name" },
       editor_id: { table: "editors", label: "name", select: "id,name" }
     },
     columns: [
+      { key: "clients.name", label: "Client", type: "relation" },
       { key: "events.event_name", label: "Event", type: "relation" },
-      { key: "editors.name", label: "Editor", type: "relation" },
-      { key: "task_type", label: "Task" },
-      { key: "expected_delivery_date", label: "Expected", type: "date" },
-      { key: "editor_payment", label: "Editor pay", type: "currency" },
+      { key: "photo_editor_assigned", label: "Photo editor" },
+      { key: "video_editor_assigned", label: "Video editor" },
+      { key: "submitted_date", label: "Submitted", type: "date" },
+      { key: "delivery_date", label: "Delivery", type: "date" },
       { key: "status", label: "Status", type: "status" }
     ],
     fields: [
-      { name: "event_id", label: "Event", type: "select", relation: "event_id", required: true },
+      { name: "client_id", label: "Client", type: "select", relation: "client_id" },
+      { name: "event_id", label: "Event", type: "select", relation: "event_id" },
       { name: "editor_id", label: "Editor", type: "select", relation: "editor_id" },
       { name: "task_type", label: "Task type", type: "select", options: ["Photo Editing", "Video Editing", "Reel Editing", "Album Design"], required: true },
+      { name: "photo_editor_assigned", label: "Photo editor assigned", type: "text" },
+      { name: "video_editor_assigned", label: "Video editor assigned", type: "text" },
       { name: "assigned_date", label: "Assigned date", type: "date" },
+      { name: "submitted_date", label: "Submitted date", type: "date" },
+      { name: "delivery_date", label: "Delivery date", type: "date" },
       { name: "expected_delivery_date", label: "Expected delivery date", type: "date" },
       { name: "editor_payment", label: "Editor payment", type: "number" },
       { name: "source_file_link", label: "Source file link", type: "url" },
