@@ -26,9 +26,20 @@ npm install
 -- Paste the contents of supabase/schema.sql
 ```
 
-4. Create an admin user in Supabase Authentication with email and password.
+4. Create the default super user by running:
 
-5. Add that auth user to `public.admin_users`:
+```sql
+-- Paste the contents of supabase/seed-superuser.sql
+```
+
+Default login:
+
+```text
+Username: praveen
+Password: Admin123
+```
+
+5. To add another admin manually, create a Supabase Auth user and add that auth user to `public.admin_users`:
 
 ```sql
 insert into public.admin_users (user_id, email)
@@ -46,7 +57,8 @@ cp .env.local.example .env.local
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-ADMIN_EMAIL=admin@example.com
+ADMIN_EMAIL=praveen@fuzzycrm.local
+NEXT_PUBLIC_SUPER_USER_EMAIL=praveen@fuzzycrm.local
 ```
 
 8. Start the app:
@@ -60,6 +72,8 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Features
 
 - Admin login via Supabase email/password auth
+- Default super-user username `praveen`
+- Email/password signup with Supabase email confirmation
 - Protected dashboard routes with unauthenticated redirect to `/login`
 - Optional `ADMIN_EMAIL` middleware check
 - Dashboard summary cards, recent events, and overdue payments/deliverables
@@ -76,6 +90,7 @@ Open [http://localhost:3000](http://localhost:3000).
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `ADMIN_EMAIL`
+   - `NEXT_PUBLIC_SUPER_USER_EMAIL`
 4. Deploy.
 
 ## Notes

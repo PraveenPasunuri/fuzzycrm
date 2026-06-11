@@ -29,17 +29,18 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isLogin = request.nextUrl.pathname === "/login";
+  const isSignup = request.nextUrl.pathname === "/signup";
   const adminEmail = process.env.ADMIN_EMAIL;
   const isAllowedAdmin = user && (!adminEmail || user.email?.toLowerCase() === adminEmail.toLowerCase());
 
-  if (!isLogin && !isAllowedAdmin) {
+  if (!isLogin && !isSignup && !isAllowedAdmin) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirectedFrom", request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
 
-  if (isLogin && isAllowedAdmin) {
+  if ((isLogin || isSignup) && isAllowedAdmin) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
