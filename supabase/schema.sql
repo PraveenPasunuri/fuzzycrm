@@ -128,6 +128,24 @@ create table public.events (
   extra_hours numeric(10,2),
   total_hours numeric(10,2),
 
+  -- =========================
+  -- DATA MANAGEMENT PIPELINE
+  -- =========================
+  -- Photo track
+  photo_data_received boolean not null default false,
+  photo_catalog_link text,
+  photo_editor_id uuid references public.team_members(id) on delete set null,
+  photo_editing_completed boolean not null default false,
+  -- Video track
+  video_data_received boolean not null default false,
+  video_catalog_link text,
+  video_editor_id uuid references public.team_members(id) on delete set null,
+  video_editing_completed boolean not null default false,
+  -- Shared delivery tail
+  delivered_to_client boolean not null default false,
+  changes_requested boolean not null default false,
+  pipeline_closed boolean not null default false,
+
   status text check (
     status is null or status in (
       'Booked',
@@ -245,6 +263,8 @@ create index idx_events_event_date on public.events(event_date);
 create index idx_events_status on public.events(status);
 create index idx_events_photo_shooter_id on public.events(photo_shooter_id);
 create index idx_events_video_shooter_id on public.events(video_shooter_id);
+create index idx_events_photo_editor_id on public.events(photo_editor_id);
+create index idx_events_video_editor_id on public.events(video_editor_id);
 
 create index idx_deliverables_client_id on public.deliverables(client_id);
 create index idx_deliverables_event_id on public.deliverables(event_id);
@@ -307,3 +327,21 @@ using (true) with check (true);
 create policy "Public portal manages editing tasks"
 on public.editing_tasks for all to anon, authenticated
 using (true) with check (true);
+
+-- =========================================================
+-- MIGRATION: data management pipeline (safe to re-run on an
+-- already-deployed database that predates these columns)
+-- =========================================================
+alter table public.events add column if not exists photo_data_received boolean not null default false;
+alter table public.events add column if not exists photo_catalog_link text;
+alter table public.events add column if not exists photo_editor_id uuid references public.team_members(id) on delete set null;
+alter table public.events add column if not exists photo_editing_completed boolean not null default false;
+alter table public.events add column if not exists video_data_received boolean not null default false;
+alter table public.events add column if not exists video_catalog_link text;
+alter table public.events add column if not exists video_editor_id uuid references public.team_members(id) on delete set null;
+alter table public.events add column if not exists video_editing_completed boolean not null default false;
+alter table public.events add column if not exists delivered_to_client boolean not null default false;
+alter table public.events add column if not exists changes_requested boolean not null default false;
+alter table public.events add column if not exists pipeline_closed boolean not null default false;
+create index if not exists idx_events_photo_editor_id on public.events(photo_editor_id);
+create index if not exists idx_events_video_editor_id on public.events(video_editor_id);

@@ -21,6 +21,7 @@ export type ModuleConfig = {
   searchFields: string[];
   statusField?: string;
   filterField?: string;
+  boardColumns?: string[];
   displayField: string;
   columns: { key: string; label: string; type?: "currency" | "date" | "status" | "relation" }[];
   fields: FieldConfig[];
@@ -114,6 +115,7 @@ export const modules: Record<string, ModuleConfig> = {
     searchFields: ["event_name", "event_type", "location", "photo_shooter.name", "video_shooter.name", "requirement", "clients.host_name"],
     statusField: "status",
     filterField: "status",
+    boardColumns: eventStatuses,
     displayField: "event_name",
     relations: {
       client_id: { table: "clients", label: "host_name", select: "id,host_name,contact_no,client_number,event_type,no_of_events" },
@@ -156,6 +158,7 @@ export const modules: Record<string, ModuleConfig> = {
     searchFields: ["events.event_name", "deliverable_type", "description", "delivery_link"],
     statusField: "status",
     filterField: "status",
+    boardColumns: deliverableStatuses,
     displayField: "deliverable_type",
     relations: {
       event_id: { table: "events", label: "event_name", select: "id,event_name" }
@@ -213,6 +216,7 @@ export const modules: Record<string, ModuleConfig> = {
     searchFields: ["clients.host_name", "events.event_name", "photo_editor.name", "video_editor.name", "task_type", "source_file_link", "output_file_link", "review_notes"],
     statusField: "status",
     filterField: "status",
+    boardColumns: editingStatuses,
     displayField: "task_type",
     relations: {
       client_id: { table: "clients", label: "host_name", select: "id,host_name,client_number" },

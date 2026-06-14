@@ -95,18 +95,18 @@ export function TeamManager({ shooters, editors, tasks, events }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-ink">Team</h2>
-        <p className="mt-1 text-sm text-zinc-500">Shooters, editors, and assigned editing projects.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">Team</h1>
+        <p className="mt-1 text-sm text-muted">Shooters, editors, and assigned editing projects.</p>
       </div>
 
       <section className="grid gap-5 xl:grid-cols-2">
-        <div className="rounded-lg border border-line bg-white shadow-soft">
-          <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+        <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
+          <div className="flex items-center justify-between gap-3 border-b border-line bg-canvas px-5 py-4">
             <div className="flex items-center gap-2">
-              <Camera className="h-5 w-5 text-brand" />
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand-soft text-brand"><Camera className="h-5 w-5" /></span>
               <h3 className="font-semibold text-ink">Shooters</h3>
             </div>
-            <button onClick={() => addMember("Shooter")} className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-[#176274]">
+            <button onClick={() => addMember("Shooter")} className="inline-flex items-center gap-2 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-dark active:scale-[0.98]">
               <Plus className="h-4 w-4" />
               Add Shooter
             </button>
@@ -120,7 +120,7 @@ export function TeamManager({ shooters, editors, tasks, events }: Props) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-ink">{member.name}</p>
-                      <p className="text-sm text-zinc-500">{member.role ?? member.specialty ?? "Shooter"}</p>
+                      <p className="text-sm text-muted">{member.role ?? member.specialty ?? "Shooter"}</p>
                       {member.google_calendar_link ? (
                         <a className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline" href={member.google_calendar_link} target="_blank" rel="noreferrer">
                           <CalendarPlus className="h-4 w-4" />
@@ -130,7 +130,7 @@ export function TeamManager({ shooters, editors, tasks, events }: Props) {
                     </div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-brand">{shooterHours(member)} hrs</p>
-                      <button aria-label="Edit shooter" title="Edit shooter" onClick={() => editMember(member)} className="rounded-md border border-line p-2 text-zinc-600 hover:bg-mist">
+                      <button aria-label="Edit shooter" title="Edit shooter" onClick={() => editMember(member)} className="rounded-md border border-line p-2 text-slate-600 hover:bg-mist">
                         <Edit className="h-4 w-4" />
                       </button>
                       <button aria-label="Delete shooter" title="Delete shooter" disabled={isPending} onClick={() => removeMember(member)} className="rounded-md border border-line p-2 text-rose-600 hover:bg-rose-50">
@@ -138,20 +138,20 @@ export function TeamManager({ shooters, editors, tasks, events }: Props) {
                       </button>
                     </div>
                   </div>
-                  <p className="mt-2 text-sm text-zinc-500">{member.contact_no ?? "No contact"}</p>
+                  <p className="mt-2 text-sm text-muted">{member.contact_no ?? "No contact"}</p>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        <div className="rounded-lg border border-line bg-white shadow-soft">
-          <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+        <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
+          <div className="flex items-center justify-between gap-3 border-b border-line bg-canvas px-5 py-4">
             <div className="flex items-center gap-2">
-              <Scissors className="h-5 w-5 text-brand" />
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand-soft text-brand"><Scissors className="h-5 w-5" /></span>
               <h3 className="font-semibold text-ink">Editors</h3>
             </div>
-            <button onClick={() => addMember("Editor")} className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-[#176274]">
+            <button onClick={() => addMember("Editor")} className="inline-flex items-center gap-2 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-dark active:scale-[0.98]">
               <Plus className="h-4 w-4" />
               Add Editor
             </button>
@@ -167,13 +167,13 @@ export function TeamManager({ shooters, editors, tasks, events }: Props) {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-ink">{member.name}</p>
-                        <p className="text-sm text-zinc-500">{member.role ?? member.specialty ?? "Editor"}</p>
-                        {member.alternate_contact_no ? <p className="mt-1 text-sm text-zinc-500">Alt: {member.alternate_contact_no}</p> : null}
-                        {member.last_amount_paid ? <p className="mt-1 text-sm text-zinc-500">Last paid: ${member.last_amount_paid}</p> : null}
+                        <p className="text-sm text-muted">{member.role ?? member.specialty ?? "Editor"}</p>
+                        {member.alternate_contact_no ? <p className="mt-1 text-sm text-muted">Alt: {member.alternate_contact_no}</p> : null}
+                        {member.last_amount_paid ? <p className="mt-1 text-sm text-muted">Last paid: ${member.last_amount_paid}</p> : null}
                       </div>
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-brand">{assigned.length} project{assigned.length === 1 ? "" : "s"}</p>
-                        <button aria-label="Edit editor" title="Edit editor" onClick={() => editMember(member)} className="rounded-md border border-line p-2 text-zinc-600 hover:bg-mist">
+                        <button aria-label="Edit editor" title="Edit editor" onClick={() => editMember(member)} className="rounded-md border border-line p-2 text-slate-600 hover:bg-mist">
                           <Edit className="h-4 w-4" />
                         </button>
                         <button aria-label="Delete editor" title="Delete editor" disabled={isPending} onClick={() => removeMember(member)} className="rounded-md border border-line p-2 text-rose-600 hover:bg-rose-50">
@@ -188,10 +188,10 @@ export function TeamManager({ shooters, editors, tasks, events }: Props) {
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-                                  <Clapperboard className="h-4 w-4 text-zinc-500" />
+                                  <Clapperboard className="h-4 w-4 text-muted" />
                                   {task.events?.event_name ?? task.clients?.host_name ?? task.task_type}
                                 </p>
-                                <p className="mt-1 text-xs text-zinc-500">
+                                <p className="mt-1 text-xs text-muted">
                                   {task.task_type} · delivery {prettyDate(task.delivery_date)}
                                 </p>
                               </div>
@@ -201,7 +201,7 @@ export function TeamManager({ shooters, editors, tasks, events }: Props) {
                         ))}
                       </div>
                     ) : (
-                      <p className="mt-2 text-sm text-zinc-500">No projects assigned.</p>
+                      <p className="mt-2 text-sm text-muted">No projects assigned.</p>
                     )}
                   </div>
                 );
@@ -212,22 +212,22 @@ export function TeamManager({ shooters, editors, tasks, events }: Props) {
       </section>
 
       {open ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-soft">
-            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+        <div className="fixed inset-0 z-50 grid animate-fade-in place-items-center bg-ink/50 p-4 backdrop-blur-sm" onClick={() => setOpen(false)}>
+          <div className="max-h-[92vh] w-full max-w-3xl animate-scale-in overflow-y-auto rounded-2xl bg-white shadow-lift" onClick={(event) => event.stopPropagation()}>
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/95 px-6 py-4 backdrop-blur">
               <h3 className="text-lg font-semibold text-ink">{editing?.id ? "Edit" : "Add"} {formKind.toLowerCase()}</h3>
-              <button aria-label="Close" title="Close" onClick={() => setOpen(false)} className="rounded-md p-2 text-zinc-500 hover:bg-mist">
+              <button aria-label="Close" title="Close" onClick={() => setOpen(false)} className="rounded-lg p-2 text-muted transition hover:bg-mist hover:text-ink">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <form action={saveRecord.bind(null, "editors")} className="grid gap-4 p-5 sm:grid-cols-2">
+            <form action={saveRecord.bind(null, "editors")} className="grid gap-4 p-6 sm:grid-cols-2">
               <input type="hidden" name="id" value={editing?.id ?? ""} />
               {activeFields.map((field) => {
                 const value = editing?.[field.name] ?? "";
-                const common = "mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand";
+                const common = "mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
                 return (
                   <label key={field.name} className={field.type === "textarea" ? "sm:col-span-2" : ""}>
-                    <span className="text-sm font-medium text-zinc-700">{field.label}{field.required ? " *" : ""}</span>
+                    <span className="text-sm font-medium text-slate-700">{field.label}{field.required ? <span className="text-coral"> *</span> : ""}</span>
                     {field.type === "textarea" ? (
                       <textarea name={field.name} defaultValue={value} rows={4} className={common} placeholder={field.placeholder} />
                     ) : field.type === "select" ? (
@@ -244,10 +244,10 @@ export function TeamManager({ shooters, editors, tasks, events }: Props) {
                 );
               })}
               <div className="flex justify-end gap-2 border-t border-line pt-4 sm:col-span-2">
-                <button type="button" onClick={() => setOpen(false)} className="rounded-md border border-line px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-mist">
+                <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-mist">
                   Cancel
                 </button>
-                <button className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-[#176274]">
+                <button className="rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-dark active:scale-[0.98]">
                   Save
                 </button>
               </div>

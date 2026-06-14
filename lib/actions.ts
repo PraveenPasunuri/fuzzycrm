@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { modules } from "@/lib/module-config";
+import { trackingFields } from "@/lib/pipeline";
 import { createClient } from "@/lib/supabase/server";
 
 const uuidSchema = z.string().uuid();
@@ -101,6 +102,61 @@ export async function saveEventBatch(records: Record<string, FormDataEntryValue 
 
   const { error } = await supabase.from(modules.events.table).insert(payloads);
   if (error) throw new Error(error.message);
+  revalidatePath("/events");
+}
+
+export async function updateStatus(slug: string, id: string, status: string) {
+  const config = modules[slug];
+  if (!config) throw new Error("Unknown module");
+  const statusField = config.statusField;
+  if (!statusField) throw new Error("This module has no status field");
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from(config.table)
+    .update({ [statusField]: status })
+    .eq("id", uuidSchema.parse(id));
+  if (error) throw new Error(error.message);
+  revalidatePath(`/${slug}`);
+}
+
+const trackingFieldSet = new Set(trackingFields);
+
+/** Derive the coarse event lifecycle status from the pipeline booleans. */
+function derivedEventStatus(row: Record<string, any>) {
+  if (row.pipeline_closed) return "Closed";
+  if (row.delivered_to_client) return "Delivered";
+  if (row.photo_editor_id || row.video_editor_id || row.photo_editing_completed || row.video_editing_completed) return "Editing";
+  return "Shoot Completed";
+}
+
+export async function updateEventTracking(id: string, field: string, value: string | boolean | null) {
+  if (!trackingFieldSet.has(field)) throw new Error("Unknown tracking field");
+  const eventId = uuidSchema.parse(id);
+  const supabase = createClient();
+
+  let nextValue: string | boolean | null;
+  if (field.endsWith("_editor_id")) {
+    nextValue = value ? uuidSchema.parse(String(value)) : null;
+  } else if (field.endsWith("_link")) {
+    const trimmed = String(value ?? "").trim();
+    nextValue = trimmed === "" ? null : trimmed;
+  } else {
+    // boolean toggle fields
+    nextValue = value === true || value === "true";
+  }
+
+  // Read the current row so we can recompute the lifecycle status.
+  const { data: current, error: readError } = await supabase.from("events").select("*").eq("id", eventId);
+  if (readError) throw new Error(readError.message);
+  const existing = ((current ?? []) as Record<string, any>[])[0] ?? {};
+
+  const merged = { ...existing, [field]: nextValue };
+  const payload: Record<string, unknown> = { [field]: nextValue, status: derivedEventStatus(merged) };
+
+  const { error } = await supabase.from("events").update(payload).eq("id", eventId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/data-management");
   revalidatePath("/events");
 }
 

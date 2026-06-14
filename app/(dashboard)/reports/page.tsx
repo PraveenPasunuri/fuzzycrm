@@ -38,26 +38,26 @@ export default async function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-ink">Reports</h2>
-        <p className="mt-1 text-sm text-zinc-500">Quick financial and fulfillment totals for the business.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">Reports</h1>
+        <p className="mt-1 text-sm text-muted">Quick financial and fulfillment totals for the business.</p>
       </div>
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {reports.map((report) => {
           const Icon = report.icon;
           return (
-            <div key={report.label} className="rounded-lg border border-line bg-white p-5 shadow-soft">
+            <div key={report.label} className="rounded-2xl border border-line bg-white p-5 shadow-card transition hover:shadow-soft">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-zinc-500">{report.label}</p>
-                <Icon className="h-5 w-5 text-brand" />
+                <p className="text-sm font-medium text-muted">{report.label}</p>
+                <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand-soft text-brand"><Icon className="h-5 w-5" /></span>
               </div>
-              <p className="mt-4 text-2xl font-bold text-ink">{report.value}</p>
+              <p className="mt-4 text-2xl font-bold tracking-tight text-ink">{report.value}</p>
             </div>
           );
         })}
       </section>
-      <div className="rounded-lg border border-line bg-white p-5 shadow-soft">
+      <div className="rounded-2xl border border-line bg-white p-6 shadow-card">
         <h3 className="font-semibold text-ink">Report notes</h3>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">
+        <p className="mt-2 text-sm leading-6 text-slate-600">
           Monthly revenue is calculated from client records updated during the current month. Pending balance comes from client balance due values, and editor payments due are taken from open editing assignments.
         </p>
       </div>

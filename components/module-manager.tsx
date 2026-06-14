@@ -2,11 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, ChevronDown, Edit, ExternalLink, MapPin, MessageCircle, Plus, Search, Trash2, UserRound, X } from "lucide-react";
-import { deleteRecord, saveEventBatch, saveRecord } from "@/lib/actions";
+import { CalendarDays, ChevronDown, Edit, ExternalLink, LayoutGrid, MapPin, MessageCircle, Plus, Search, Table2, Trash2, X } from "lucide-react";
+import { deleteRecord, saveEventBatch, saveRecord, updateStatus } from "@/lib/actions";
 import { type ModuleConfig } from "@/lib/module-config";
-import { currency, prettyDate } from "@/lib/utils";
+import { cn, currency, prettyDate } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
+import { KanbanBoard } from "@/components/kanban-board";
 import { StatusBadge } from "@/components/status-badge";
 
 type Props = {
@@ -88,6 +89,8 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
   const [selectedClientId, setSelectedClientId] = useState("");
   const [eventDrafts, setEventDrafts] = useState<Record<string, FormDataEntryValue | null>[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const hasBoard = Boolean(config.boardColumns?.length);
+  const [view, setView] = useState<"board" | "table">(hasBoard ? "board" : "table");
   const [isPending, startTransition] = useTransition();
 
   const filterOptions = useMemo(() => {
@@ -156,6 +159,13 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
     });
   }
 
+  function move(row: Record<string, any>, status: string) {
+    startTransition(async () => {
+      await updateStatus(config.slug, row.id, status);
+      router.refresh();
+    });
+  }
+
   function selectedClientEventCount() {
     const client = selectedClient();
     return Math.max(Number(client?.no_of_events ?? 1), 1);
@@ -216,27 +226,30 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
     <div className="space-y-5">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <h2 className="text-2xl font-bold text-ink">{config.title}</h2>
-          <p className="mt-1 text-sm text-zinc-500">{config.description}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">{config.title}</h1>
+          <p className="mt-1 text-sm text-muted">{config.description}</p>
         </div>
-        <button onClick={openCreate} className="inline-flex items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-[#176274]">
+        <button
+          onClick={openCreate}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-dark active:scale-[0.98]"
+        >
           <Plus className="h-4 w-4" />
           Add {config.title.replace(/s$/, "")}
         </button>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-line bg-white p-3 shadow-soft md:flex-row">
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-white p-3 shadow-card md:flex-row md:items-center">
         <label className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={`Search ${config.title.toLowerCase()}`}
-            className="h-10 w-full rounded-md border border-line bg-white pl-9 pr-3 text-sm outline-none focus:border-brand"
+            placeholder={`Search ${config.title.toLowerCase()}...`}
+            className="h-10 w-full rounded-lg border border-line bg-canvas pl-9 pr-3 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20"
           />
         </label>
-        {config.filterField ? (
-          <select value={filter} onChange={(event) => setFilter(event.target.value)} className="h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-brand">
+        {config.filterField && (!hasBoard || view === "table") ? (
+          <select value={filter} onChange={(event) => setFilter(event.target.value)} className="h-10 rounded-lg border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20">
             <option value="all">All statuses</option>
             {filterOptions.map((option) => (
               <option key={String(option)} value={String(option)}>
@@ -245,9 +258,35 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
             ))}
           </select>
         ) : null}
+        {hasBoard ? (
+          <div className="flex shrink-0 items-center rounded-lg border border-line bg-canvas p-1">
+            <button
+              type="button"
+              onClick={() => setView("board")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:text-ink",
+                view === "board" && "bg-white text-ink shadow-card"
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" /> Board
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("table")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:text-ink",
+                view === "table" && "bg-white text-ink shadow-card"
+              )}
+            >
+              <Table2 className="h-4 w-4" /> {config.slug === "events" ? "Cards" : "Table"}
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      {visibleRows.length === 0 ? (
+      {hasBoard && view === "board" ? (
+        <KanbanBoard config={config} rows={visibleRows} onEdit={openEdit} onDelete={remove} onMove={move} disabled={isPending} />
+      ) : visibleRows.length === 0 ? (
         <EmptyState title={`No ${config.title.toLowerCase()} found`} text="Add a new record or adjust the current search and filter." />
       ) : config.slug === "events" ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -255,19 +294,19 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
             const isExpanded = expandedGroups[group.key] ?? false;
             const celebration = group.rows[0]?.event_name ?? "-";
             return (
-              <div key={group.key} className="rounded-md border border-line bg-white shadow-soft">
+              <div key={group.key} className="overflow-hidden rounded-xl border border-line bg-white shadow-card transition hover:shadow-soft">
                 <button
                   onClick={() => setExpandedGroups(isExpanded ? {} : { [group.key]: true })}
-                  className="block w-full p-4 text-left hover:bg-mist/60"
+                  className="block w-full p-4 text-left transition hover:bg-mist/60"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="truncate text-base font-bold text-ink">{group.host}</h3>
                       <p className="mt-1 truncate text-sm font-semibold text-brand">{celebration}</p>
-                      <p className="mt-2 text-sm text-zinc-600">{eventDateRange(group.rows)}</p>
-                      <p className="mt-2 text-sm font-medium text-zinc-700">No of events: {group.rows.length}</p>
+                      <p className="mt-2 text-sm text-slate-600">{eventDateRange(group.rows)}</p>
+                      <p className="mt-2 text-sm font-medium text-slate-700">No of events: {group.rows.length}</p>
                     </div>
-                    <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-zinc-500 transition ${isExpanded ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-muted transition ${isExpanded ? "rotate-180" : ""}`} />
                   </div>
                 </button>
                 {isExpanded ? (
@@ -284,11 +323,11 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="font-semibold text-ink">{title}</p>
-                              <p className="mt-1 flex items-center gap-1 text-sm text-zinc-500"><CalendarDays className="h-4 w-4" />{prettyDate(event.event_date)}</p>
+                              <p className="mt-1 flex items-center gap-1 text-sm text-muted"><CalendarDays className="h-4 w-4" />{prettyDate(event.event_date)}</p>
                             </div>
                             <div className="flex items-center gap-2">
                               {event.status ? <StatusBadge value={String(event.status)} /> : null}
-                              <button aria-label="Edit event" title="Edit event" onClick={() => openEdit(event)} className="rounded-md border border-line bg-white p-2 text-zinc-600 hover:bg-mist">
+                              <button aria-label="Edit event" title="Edit event" onClick={() => openEdit(event)} className="rounded-md border border-line bg-white p-2 text-slate-600 hover:bg-mist">
                                 <Edit className="h-4 w-4" />
                               </button>
                               <button aria-label="Delete event" title="Delete event" disabled={isPending} onClick={() => remove(event)} className="rounded-md border border-line bg-white p-2 text-rose-600 hover:bg-rose-50">
@@ -296,8 +335,8 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                               </button>
                             </div>
                           </div>
-                          <p className="mt-3 flex items-start gap-1 text-sm text-zinc-600"><MapPin className="mt-0.5 h-4 w-4 shrink-0" />{event.location ?? "No location"}</p>
-                          <div className="mt-3 grid gap-2 text-sm text-zinc-600">
+                          <p className="mt-3 flex items-start gap-1 text-sm text-slate-600"><MapPin className="mt-0.5 h-4 w-4 shrink-0" />{event.location ?? "No location"}</p>
+                          <div className="mt-3 grid gap-2 text-sm text-slate-600">
                             <p><span className="font-medium text-ink">Photo shooter:</span> {event.photo_shooter?.name ?? "Unassigned"}</p>
                             <p><span className="font-medium text-ink">Video shooter:</span> {event.video_shooter?.name ?? "Unassigned"}</p>
                             <p><span className="font-medium text-ink">Initial hours:</span> {event.total_initial_hours ?? event.total_hours ?? 0}</p>
@@ -324,33 +363,33 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
           })}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-line bg-white shadow-soft">
+        <div className="overflow-hidden rounded-xl border border-line bg-white shadow-card">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-line text-sm">
-              <thead className="bg-mist">
+              <thead className="bg-canvas">
                 <tr>
                   {config.columns.map((column) => (
-                    <th key={column.key} className="px-4 py-3 text-left font-semibold text-zinc-600">
+                    <th key={column.key} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                       {column.label}
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-right font-semibold text-zinc-600">Actions</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {visibleRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-mist/60">
+                  <tr key={row.id} className="transition hover:bg-mist/50">
                     {config.columns.map((column) => (
-                      <td key={column.key} className="max-w-64 truncate px-4 py-3 text-zinc-700">
+                      <td key={column.key} className="max-w-64 truncate px-4 py-3 text-slate-700">
                         {formatCell(row, column)}
                       </td>
                     ))}
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
-                        <button aria-label="Edit" title="Edit" onClick={() => openEdit(row)} className="rounded-md border border-line p-2 text-zinc-600 hover:bg-mist">
+                        <button aria-label="Edit" title="Edit" onClick={() => openEdit(row)} className="rounded-lg border border-line p-2 text-slate-600 transition hover:bg-mist hover:text-ink">
                           <Edit className="h-4 w-4" />
                         </button>
-                        <button aria-label="Delete" title="Delete" disabled={isPending} onClick={() => remove(row)} className="rounded-md border border-line p-2 text-rose-600 hover:bg-rose-50">
+                        <button aria-label="Delete" title="Delete" disabled={isPending} onClick={() => remove(row)} className="rounded-lg border border-line p-2 text-rose-600 transition hover:bg-rose-50 disabled:opacity-50">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -364,18 +403,21 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
       )}
 
       {open ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-soft">
-            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+        <div className="fixed inset-0 z-50 grid animate-fade-in place-items-center bg-ink/50 p-4 backdrop-blur-sm" onClick={() => setOpen(false)}>
+          <div
+            className="max-h-[92vh] w-full max-w-3xl animate-scale-in overflow-y-auto rounded-2xl bg-white shadow-lift"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/95 px-6 py-4 backdrop-blur">
               <div>
                 <h3 className="text-lg font-semibold text-ink">{editing?.id ? "Edit" : "Add"} {config.title.replace(/s$/, "")}</h3>
                 {isBatchEventCreate() ? (
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 text-sm text-muted">
                     Event {eventDrafts.length + 1} of {selectedClientEventCount()} will be saved after all events are entered.
                   </p>
                 ) : null}
               </div>
-              <button aria-label="Close" title="Close" onClick={() => setOpen(false)} className="rounded-md p-2 text-zinc-500 hover:bg-mist">
+              <button aria-label="Close" title="Close" onClick={() => setOpen(false)} className="rounded-lg p-2 text-muted transition hover:bg-mist hover:text-ink">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -384,18 +426,18 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
               action={isBatchEventCreate() ? undefined : saveRecord.bind(null, config.slug)}
               onInput={handleClientMath}
               onSubmit={handleFormSubmit}
-              className="grid gap-4 p-5 sm:grid-cols-2"
+              className="grid gap-4 p-6 sm:grid-cols-2"
             >
               <input type="hidden" name="id" value={editing?.id ?? ""} />
               {config.fields.map((field) => {
                 const isEventCelebrationCreate = config.slug === "events" && field.name === "event_name" && !editing?.id;
                 const value = isEventCelebrationCreate ? selectedCelebration() : editing?.[field.name] ?? "";
                 const datalistId = `${config.slug}-${field.name}-suggestions`;
-                const common = "mt-1 w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand";
+                const common = "mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20";
                 const isClientNumberOnCreate = config.slug === "clients" && field.name === "client_number" && !editing?.[field.name];
                 return (
                   <label key={field.name} className={field.type === "textarea" ? "sm:col-span-2" : ""}>
-                    <span className="text-sm font-medium text-zinc-700">{field.label}{field.required ? " *" : ""}</span>
+                    <span className="text-sm font-medium text-slate-700">{field.label}{field.required ? <span className="text-coral"> *</span> : ""}</span>
                     {isEventCelebrationCreate ? (
                       <>
                         <input type="hidden" name={field.name} value={value} />
@@ -457,10 +499,10 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                 );
               })}
               <div className="flex justify-end gap-2 border-t border-line pt-4 sm:col-span-2">
-                <button type="button" onClick={() => setOpen(false)} className="rounded-md border border-line px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-mist">
+                <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-mist">
                   Cancel
                 </button>
-                <button disabled={isPending} className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-[#176274] disabled:opacity-60">
+                <button disabled={isPending} className="rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-dark active:scale-[0.98] disabled:opacity-60">
                   {isBatchEventCreate() && eventDrafts.length + 1 < selectedClientEventCount() ? "Next event" : "Save"}
                 </button>
               </div>
