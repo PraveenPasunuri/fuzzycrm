@@ -1,9 +1,9 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
-export default function ClientIntakePage() {
+function ClientIntakeForm() {
   const search = useSearchParams();
   const prePhone = search.get("phone") ?? "";
   const preEmail = search.get("email") ?? "";
@@ -18,7 +18,7 @@ export default function ClientIntakePage() {
       const res = await fetch("/api/client-intake", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(form) });
       if (!res.ok) throw new Error("Failed");
       setSuccess(true);
-    } catch (err) {
+    } catch {
       alert("Submission failed");
     } finally {
       setLoading(false);
@@ -74,5 +74,13 @@ export default function ClientIntakePage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function ClientIntakePage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-xl p-8 text-sm text-muted">Loading...</div>}>
+      <ClientIntakeForm />
+    </Suspense>
   );
 }

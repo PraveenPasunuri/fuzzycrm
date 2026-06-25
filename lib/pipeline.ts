@@ -23,7 +23,7 @@ export type StageDef = {
 };
 
 export type TrackDef = {
-  id: "photo" | "video" | "shared";
+  id: "photo" | "video" | "video_traditional" | "shared";
   title: string;
   stages: StageDef[];
 };

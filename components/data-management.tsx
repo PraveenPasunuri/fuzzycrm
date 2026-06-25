@@ -14,6 +14,12 @@ import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
 
 type Editor = { id: string; name: string; role?: string };
+type TrackFieldMap = {
+  editorField: string;
+  catalogField: string;
+  dataUploadedField: string;
+  paymentField: string;
+};
 
 type Props = {
   events: EventRow[];
@@ -21,7 +27,7 @@ type Props = {
 };
 
 // Map track IDs to editor/catalog/payment field names
-const trackFieldMap: Record<string, { editorField: string; catalogField: string; dataUploadedField: string; paymentField: string }> = {
+const trackFieldMap: Record<string, TrackFieldMap> = {
   photo: {
     editorField: "photo_editor_id",
     catalogField: "photo_catalog_link",
@@ -144,7 +150,7 @@ function KanbanTrack({
   events: EventRow[];
   editors: Editor[];
   editorNameMap: Map<string, string>;
-  trackFieldMap: (typeof trackFieldMap)[keyof typeof trackFieldMap];
+  trackFieldMap: TrackFieldMap;
   activeStage: { eventId: string; stageKey: string } | null;
   onSelectStage: (stage: { eventId: string; stageKey: string } | null) => void;
   disabled: boolean;
