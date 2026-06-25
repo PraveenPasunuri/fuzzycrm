@@ -182,7 +182,7 @@ export function ModuleManager({ config, rows, relationOptions, demoMode = false 
     }
   }
 
-  function hydrateRelations(row: Record<string, any>) {
+  const hydrateRelations = useCallback((row: Record<string, any>) => {
     if (!config.relations) return row;
     const hydrated = { ...row };
     for (const [field, relation] of Object.entries(config.relations)) {
@@ -190,9 +190,12 @@ export function ModuleManager({ config, rows, relationOptions, demoMode = false 
       hydrated[alias] = (relationOptions[field] ?? []).find((option) => option.id === row[field]) ?? row[alias] ?? null;
     }
     return hydrated;
-  }
+  }, [config.relations, relationOptions]);
 
-  const storedRows = demoMode ? localRows.map(hydrateRelations) : rows;
+  const storedRows = useMemo(
+    () => (demoMode ? localRows.map(hydrateRelations) : rows),
+    [demoMode, hydrateRelations, localRows, rows]
+  );
 
   const filterOptions = useMemo(() => {
     if (!config.filterField) return [];

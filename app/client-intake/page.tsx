@@ -29,7 +29,7 @@ export default function ClientIntakePage() {
     return (
       <div className="mx-auto max-w-xl p-8">
         <h1 className="text-2xl font-bold">Thanks — your details are submitted</h1>
-        <p className="mt-4 text-sm text-muted">We'll get back to you shortly.</p>
+        <p className="mt-4 text-sm text-muted">We&apos;ll get back to you shortly.</p>
       </div>
     );
   }
