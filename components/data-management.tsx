@@ -2,19 +2,16 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Camera, MapPin, Search, UserRound, Video, X } from "lucide-react";
+import { Camera, MapPin, Search, UserRound, Video, X, DollarSign } from "lucide-react";
 import { updateEventTracking } from "@/lib/actions";
 import {
-  overallProgress,
-  pipelineStageLabel,
   tracks,
   type EventRow,
-  type StageDef
+  type StageDef,
+  type TrackDef
 } from "@/lib/pipeline";
-import { cn, prettyDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
-import { StatusBadge } from "@/components/status-badge";
-import { StageValue, TrackingBar } from "@/components/tracking-bar";
 
 type Editor = { id: string; name: string; role?: string };
 
@@ -23,18 +20,46 @@ type Props = {
   editors: Editor[];
 };
 
-const stageByKey = new Map<string, StageDef>(tracks.flatMap((track) => track.stages).map((stage) => [stage.key, stage]));
+// Map track IDs to editor/catalog/payment field names
+const trackFieldMap: Record<string, { editorField: string; catalogField: string; dataUploadedField: string; paymentField: string }> = {
+  photo: {
+    editorField: "photo_editor_id",
+    catalogField: "photo_catalog_link",
+    dataUploadedField: "photo_data_uploaded",
+    paymentField: "photo_editor_payment"
+  },
+  video: {
+    editorField: "video_editor_id",
+    catalogField: "video_catalog_link",
+    dataUploadedField: "video_data_uploaded",
+    paymentField: "video_editor_payment"
+  },
+  video_traditional: {
+    editorField: "video_traditional_editor_id",
+    catalogField: "video_traditional_catalog_link",
+    dataUploadedField: "video_traditional_data_uploaded",
+    paymentField: "video_traditional_editor_payment"
+  }
+};
+
+function isStageComplete(event: EventRow, stage: StageDef, trackId: string) {
+  const field = stage.field;
+  const value = event[field];
+  if (stage.kind === "link") return Boolean(String(value ?? "").trim());
+  if (stage.kind === "editor") return Boolean(value);
+  return Boolean(value);
+}
 
 export function DataManagement({ events, editors }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [active, setActive] = useState<{ eventId: string; stageKey: string } | null>(null);
+  const [activeStage, setActiveStage] = useState<{ eventId: string; stageKey: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const editorName = useMemo(() => {
+  const editorNameMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const editor of editors) map.set(editor.id, editor.name);
-    return (id: string | null | undefined) => (id ? map.get(id) ?? "Assigned" : undefined);
+    return map;
   }, [editors]);
 
   const visible = useMemo(() => {
@@ -53,16 +78,12 @@ export function DataManagement({ events, editors }: Props) {
     });
   }
 
-  function toggleStage(event: EventRow, stage: StageDef) {
-    commit(event.id, stage.field, !event[stage.field]);
-  }
-
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-ink">Data Management</h1>
         <p className="mt-1 text-sm text-muted">
-          Track each shoot-completed event through data, cataloging, editing, and delivery.
+          Track photo, video, and traditional video through data, cataloging, editing, and delivery.
         </p>
       </div>
 
@@ -84,215 +105,251 @@ export function DataManagement({ events, editors }: Props) {
           text="Events appear here once they are marked Shoot Completed on the Events board."
         />
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
-          {visible.map((event) => {
-            const progress = overallProgress(event);
-            const host = event.clients?.host_name ?? "No host";
-            return (
-              <article key={event.id} className="overflow-hidden rounded-2xl border border-line bg-white shadow-card transition hover:shadow-soft">
-                {/* overall progress strip */}
-                <div className="h-1.5 w-full bg-slate-100">
-                  <div
-                    className="h-full rounded-r-full bg-gradient-to-r from-sky-500 via-indigo-500 to-emerald-500 transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="truncate text-base font-bold text-ink">{host}</h3>
-                      <p className="mt-0.5 truncate text-sm font-semibold text-brand">{event.event_name ?? event.event_type ?? "Event"}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-                        <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{prettyDate(event.event_date)}</span>
-                        {event.location ? <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{event.location}</span> : null}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <StatusBadge value={pipelineStageLabel(event)} />
-                      <span className="text-xs font-bold text-slate-500">{progress}%</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 space-y-5">
-                    {tracks.map((track) => {
-                      const activeForCard = active && active.eventId === event.id ? active.stageKey : null;
-                      const editStage =
-                        activeForCard && track.stages.some((stage) => stage.key === activeForCard)
-                          ? stageByKey.get(activeForCard)
-                          : null;
-                      return (
-                        <div key={track.id}>
-                          <TrackingBar
-                            track={track}
-                            event={event}
-                            activeStage={activeForCard}
-                            onSelectStage={(stageKey) =>
-                              setActive(stageKey ? { eventId: event.id, stageKey } : null)
-                            }
-                            disabled={isPending}
-                          />
-                          {editStage ? (
-                            <StageEditor
-                              event={event}
-                              stage={editStage}
-                              editors={editors}
-                              disabled={isPending}
-                              onClose={() => setActive(null)}
-                              onToggle={(stage) => toggleStage(event, stage)}
-                              onSave={(field, value) => {
-                                commit(event.id, field, value);
-                                setActive(null);
-                              }}
-                            />
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* quick reference of saved links / editors */}
-                  <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-3 text-sm">
-                    <TrackSummary icon={Camera} label="Photo" event={event} editorField="photo_editor_id" catalogField="photo_catalog_link" editorName={editorName} />
-                    <TrackSummary icon={Video} label="Video" event={event} editorField="video_editor_id" catalogField="video_catalog_link" editorName={editorName} />
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+        <div className="space-y-8">
+          {/* Kanban board for each track */}
+          {tracks
+            .filter((track) => track.id !== "shared")
+            .map((track) => (
+              <KanbanTrack
+                key={track.id}
+                track={track}
+                events={visible}
+                editors={editors}
+                editorNameMap={editorNameMap}
+                trackFieldMap={trackFieldMap[track.id]}
+                activeStage={activeStage}
+                onSelectStage={setActiveStage}
+                disabled={isPending}
+                onCommit={commit}
+              />
+            ))}
         </div>
       )}
     </div>
   );
 }
 
-function TrackSummary({
-  icon: Icon,
-  label,
-  event,
-  editorField,
-  catalogField,
-  editorName
+function KanbanTrack({
+  track,
+  events,
+  editors,
+  editorNameMap,
+  trackFieldMap,
+  activeStage,
+  onSelectStage,
+  disabled,
+  onCommit
 }: {
-  icon: typeof Camera;
-  label: string;
-  event: EventRow;
-  editorField: string;
-  catalogField: string;
-  editorName: (id: string | null | undefined) => string | undefined;
+  track: TrackDef;
+  events: EventRow[];
+  editors: Editor[];
+  editorNameMap: Map<string, string>;
+  trackFieldMap: (typeof trackFieldMap)[keyof typeof trackFieldMap];
+  activeStage: { eventId: string; stageKey: string } | null;
+  onSelectStage: (stage: { eventId: string; stageKey: string } | null) => void;
+  disabled: boolean;
+  onCommit: (eventId: string, field: string, value: string | boolean | null) => void;
 }) {
-  const catalog = String(event[catalogField] ?? "").trim();
-  const editor = editorName(event[editorField]);
+  const trackIcon = track.id === "photo" ? Camera : Video;
+  const Icon = trackIcon;
+
   return (
-    <div className="rounded-lg bg-canvas px-3 py-2">
-      <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600"><Icon className="h-3.5 w-3.5" />{label}</p>
-      <p className="mt-1 truncate text-xs text-muted">
-        Editor: <span className="font-medium text-slate-700">{editor ?? "Unassigned"}</span>
-      </p>
-      <p className="truncate text-xs text-muted">
-        Catalog:{" "}
-        {catalog ? (
-          <a href={catalog} target="_blank" rel="noreferrer" className="font-medium text-brand hover:underline">
-            View
-          </a>
-        ) : (
-          <span className="font-medium text-slate-700">None</span>
-        )}
-      </p>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Icon className="h-5 w-5 text-slate-600" />
+        <h2 className="text-lg font-bold text-ink">{track.title}</h2>
+      </div>
+
+      {/* Kanban columns */}
+      <div className="flex gap-4 overflow-x-auto pb-2">
+        {track.stages.map((stage) => {
+          // Find all events that are at or past this stage
+          const cardsInColumn = events.filter((event) => {
+            // Check if this event has completed all previous stages and is at this stage
+            const stageIndex = track.stages.indexOf(stage);
+            const allPreviousComplete = track.stages
+              .slice(0, stageIndex)
+              .every((s) => isStageComplete(event, s, track.id));
+
+            if (!allPreviousComplete) return false;
+
+            // If all previous are complete, check if this stage is complete
+            return isStageComplete(event, stage, track.id);
+          });
+
+          return (
+            <div key={stage.key} className="flex w-80 shrink-0 flex-col rounded-xl border border-line bg-canvas">
+              {/* Column header */}
+              <div className={cn("border-b border-line px-4 py-3", stage.color)}>
+                <h3 className="text-sm font-semibold text-white">{stage.label}</h3>
+                <p className="text-xs font-medium text-white/80">{cardsInColumn.length} items</p>
+              </div>
+
+              {/* Column cards */}
+              <div className="flex-1 space-y-2 p-3">
+                {cardsInColumn.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-xs text-muted">
+                    No items
+                  </div>
+                ) : (
+                  cardsInColumn.map((event) => {
+                    const assignedEditor = editorNameMap.get(event[trackFieldMap.editorField] as string);
+                    const payment = event[trackFieldMap.paymentField as keyof EventRow];
+                    const isActive = activeStage?.eventId === event.id && activeStage?.stageKey === stage.key;
+
+                    return (
+                      <div
+                        key={event.id}
+                        className="rounded-lg border border-line bg-white p-3 shadow-sm transition hover:shadow-card"
+                      >
+                        <p className="truncate text-sm font-semibold text-ink">{event.clients?.host_name}</p>
+                        <p className="truncate text-xs text-slate-600">{event.event_name || event.event_type}</p>
+
+                        <div className="mt-2 space-y-1 border-t border-line pt-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-slate-600">Assignee:</span>
+                            <span className="font-medium">{assignedEditor || "Unassigned"}</span>
+                          </div>
+                          {payment ? (
+                            <div className="flex justify-between">
+                              <span className="flex items-center gap-1 text-slate-600">
+                                <DollarSign className="h-3 w-3" />
+                                Payment:
+                              </span>
+                              <span className="font-medium">${Number(payment).toFixed(2)}</span>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="mt-3 flex gap-2">
+                          {stage.kind === "editor" && (
+                            <button
+                              onClick={() => onSelectStage({ eventId: event.id, stageKey: stage.key })}
+                              className="flex-1 rounded-md bg-brand px-2 py-1 text-xs font-medium text-white transition hover:bg-brand-dark"
+                            >
+                              Assign
+                            </button>
+                          )}
+                          {stage.kind === "link" && (
+                            <button
+                              onClick={() => onSelectStage({ eventId: event.id, stageKey: stage.key })}
+                              className="flex-1 rounded-md bg-brand px-2 py-1 text-xs font-medium text-white transition hover:bg-brand-dark"
+                            >
+                              Add Link
+                            </button>
+                          )}
+                          {(stage.kind === "toggle" || stage.kind === "done") && (
+                            <button
+                              onClick={() => onCommit(event.id, stage.field, !event[stage.field])}
+                              disabled={disabled}
+                              className="flex-1 rounded-md bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-300 disabled:opacity-50"
+                            >
+                              Done
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Inline editor for active stage */}
+                        {isActive && (
+                          <StageInlineEditor
+                            stage={stage}
+                            event={event}
+                            editors={editors}
+                            disabled={disabled}
+                            onClose={() => onSelectStage(null)}
+                            onSave={(field, value) => {
+                              onCommit(event.id, field, value);
+                              onSelectStage(null);
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function StageEditor({
-  event,
+function StageInlineEditor({
   stage,
+  event,
   editors,
   disabled,
   onClose,
-  onToggle,
   onSave
 }: {
-  event: EventRow;
   stage: StageDef;
+  event: EventRow;
   editors: Editor[];
-  disabled?: boolean;
+  disabled: boolean;
   onClose: () => void;
-  onToggle: (stage: StageDef) => void;
   onSave: (field: string, value: string | boolean | null) => void;
 }) {
   const [linkValue, setLinkValue] = useState(String(event[stage.field] ?? ""));
   const [editorValue, setEditorValue] = useState(String(event[stage.field] ?? ""));
 
   return (
-    <div className="mt-3 animate-fade-in rounded-xl border border-line bg-canvas p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-semibold text-ink">{stage.label}</p>
-        <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted hover:bg-mist hover:text-ink">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      {stage.kind === "toggle" || stage.kind === "done" ? (
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => onToggle(stage)}
-          className={cn(
-            "w-full rounded-lg px-3 py-2 text-sm font-semibold transition",
-            event[stage.field]
-              ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              : "bg-brand text-white shadow-soft hover:bg-brand-dark"
-          )}
-        >
-          {event[stage.field] ? "Mark as not done" : "Mark as done"}
-        </button>
-      ) : null}
-
+    <div className="mt-3 border-t border-line pt-3">
       {stage.kind === "link" ? (
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2">
           <input
             value={linkValue}
             onChange={(e) => setLinkValue(e.target.value)}
-            placeholder="Paste catalog link or location..."
-            className="h-9 flex-1 rounded-lg border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            placeholder="Paste link..."
+            className="h-8 rounded-lg border border-line bg-white px-2 text-xs outline-none transition focus:border-brand focus:ring-1 focus:ring-brand/20"
           />
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onSave(stage.field, linkValue)}
-            className="h-9 rounded-lg bg-brand px-4 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-dark"
-          >
-            Save
-          </button>
-        </div>
-      ) : null}
-
-      {stage.kind === "editor" ? (
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="relative flex-1">
-            <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <select
-              value={editorValue}
-              onChange={(e) => setEditorValue(e.target.value)}
-              className="h-9 w-full rounded-lg border border-line bg-white pl-9 pr-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+          <div className="flex gap-2">
+            <button
+              onClick={() => onSave(stage.field, linkValue)}
+              disabled={disabled}
+              className="flex-1 rounded-md bg-brand px-2 py-1 text-xs font-medium text-white transition hover:bg-brand-dark disabled:opacity-50"
             >
-              <option value="">Unassigned</option>
-              {editors.map((editor) => (
-                <option key={editor.id} value={editor.id}>
-                  {editor.name}
-                  {editor.role ? ` · ${editor.role}` : ""}
-                </option>
-              ))}
-            </select>
+              Save
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-md border border-line bg-white px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-canvas"
+            >
+              Cancel
+            </button>
           </div>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onSave(stage.field, editorValue || null)}
-            className="h-9 rounded-lg bg-brand px-4 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-dark"
+        </div>
+      ) : stage.kind === "editor" ? (
+        <div className="flex flex-col gap-2">
+          <select
+            value={editorValue}
+            onChange={(e) => setEditorValue(e.target.value)}
+            className="h-8 rounded-lg border border-line bg-white px-2 text-xs outline-none transition focus:border-brand focus:ring-1 focus:ring-brand/20"
           >
-            Save
-          </button>
+            <option value="">Unassigned</option>
+            {editors.map((editor) => (
+              <option key={editor.id} value={editor.id}>
+                {editor.name}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onSave(stage.field, editorValue || null)}
+              disabled={disabled}
+              className="flex-1 rounded-md bg-brand px-2 py-1 text-xs font-medium text-white transition hover:bg-brand-dark disabled:opacity-50"
+            >
+              Assign
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-md border border-line bg-white px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-canvas"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

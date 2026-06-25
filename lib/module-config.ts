@@ -10,6 +10,8 @@ export type FieldConfig = {
   relation?: string;
   placeholder?: string;
   readOnly?: boolean;
+  pattern?: string;
+  maxLength?: number;
 };
 
 export type ModuleConfig = {
@@ -29,7 +31,7 @@ export type ModuleConfig = {
 };
 
 export const eventStatuses = ["Booked", "Shoot Completed", "Editing", "Delivered", "Closed"];
-export const clientStatuses = ["Inquiry", "Pending", "Waiting For Event Date", "Confirmed", "Completed", "Cancelled"];
+export const clientStatuses = ["Inquiry", "Quotation Sent", "Confirmed", "Completed", "Cancelled"];
 export const deliverableStatuses = ["Pending", "In Progress", "Delivered"];
 export const editingStatuses = ["Not Assigned", "Assigned", "In Progress", "Submitted For Editing", "Sent For Review", "Changes Requested", "Completed"];
 export const cityOptions = ["Dallas", "Houston", "San Antonio", "Austin", "Fort Worth", "Frisco", "Plano", "Irving", "Arlington", "McKinney", "Garland", "Denton", "Richardson", "Allen"];
@@ -81,28 +83,28 @@ export const modules: Record<string, ModuleConfig> = {
       { key: "contact_no", label: "Contact" },
       { key: "event_type", label: "Celebration" },
       { key: "event_date", label: "Event date", type: "date" },
-      { key: "total_price", label: "Total", type: "currency" },
-      { key: "balance_due", label: "Balance", type: "currency" },
+      //{ key: "total_price", label: "Total", type: "currency" },
+      //{ key: "balance_due", label: "Balance", type: "currency" },
       { key: "status", label: "Status", type: "status" }
     ],
     fields: [
       { name: "client_number", label: "Client ID", type: "number", readOnly: true, placeholder: "Added after save" },
       { name: "host_name", label: "Host name", type: "text", required: true },
-      { name: "contact_no", label: "Contact no", type: "tel" },
+      { name: "contact_no", label: "Contact no", type: "tel", pattern: "^\\d{3}-\\d{3}-\\d{4}$", maxLength: 12 },
       { name: "email", label: "Email", type: "email" },
-      { name: "event_type", label: "Celebration", type: "text" },
+      { name: "event_type", label: "Event", type: "text" },
       { name: "event_date", label: "Event date", type: "date" },
-      { name: "quoted_hours", label: "Quoted hours", type: "number", placeholder: "10 hours" },
-      { name: "quoted_price", label: "Quoted price", type: "number", placeholder: "$123" },
+      { name: "quoted_hours", label: "Quoted hours", type: "number", placeholder: "Minimum 2 hrs" },
+      { name: "quoted_price", label: "Quoted price", type: "number", placeholder: "$350" },
       { name: "no_of_events", label: "No of events", type: "number" },
-      { name: "city", label: "City", type: "select", options: cityOptions },
+     // { name: "city", label: "City", type: "select", options: cityOptions },
       { name: "total_price", label: "Total price", type: "number", readOnly: true },
       { name: "advance_paid", label: "Advance paid", type: "number" },
       { name: "balance_due", label: "Balance due", type: "number", readOnly: true },
       { name: "deliverables_summary", label: "Deliverables", type: "text", placeholder: "Photos, video, reel..." },
-      { name: "data_backup", label: "Data backup", type: "text", placeholder: "Yes, hard disk, cloud..." },
+      //{ name: "data_backup", label: "Data backup", type: "text", placeholder: "Yes, hard disk, cloud..." },
       { name: "status", label: "Status", type: "select", options: clientStatuses },
-      { name: "address", label: "Address", type: "textarea" },
+      //{ name: "address", label: "Address", type: "textarea" },
       { name: "notes", label: "Notes", type: "textarea" }
     ]
   },

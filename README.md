@@ -115,9 +115,24 @@ cp .env.local.example .env.local
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# Optional: direct quotation document sending through WhatsApp Business Cloud API
+WHATSAPP_ACCESS_TOKEN=your-meta-whatsapp-access-token
+WHATSAPP_PHONE_NUMBER_ID=your-whatsapp-phone-number-id
+WHATSAPP_GRAPH_API_VERSION=v22.0
 ```
 
 If you skip `.env.local`, the app uses a **local JSON development database** at `data/local-db.json`. It is created automatically with demo records (including a couple of shoot-completed events so the Data Management pipeline has content) and is ignored by git.
+
+### WhatsApp quotation sending
+
+To send quotation documents directly through WhatsApp, create a Meta Developer app with WhatsApp Business Cloud API enabled, then add these server-side values to `.env.local`:
+
+- `WHATSAPP_ACCESS_TOKEN`: a Meta access token with permission to send WhatsApp messages.
+- `WHATSAPP_PHONE_NUMBER_ID`: the WhatsApp Business phone number ID from Meta.
+- `WHATSAPP_GRAPH_API_VERSION`: Graph API version, for example `v22.0`.
+
+Client phone numbers must include a country code. For 10-digit US numbers, the app prefixes `1` automatically.
 
 4. Start the app:
 

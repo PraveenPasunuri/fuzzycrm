@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, ChevronDown, Edit, ExternalLink, LayoutGrid, MapPin, MessageCircle, Plus, Search, Table2, Trash2, X } from "lucide-react";
+import { CalendarDays, ChevronDown, Edit, ExternalLink, FileText, LayoutGrid, Mail, MapPin, MessageCircle, Plus, Printer, Search, Table2, Trash2, X } from "lucide-react";
 import { deleteRecord, saveEventBatch, saveRecord, updateStatus } from "@/lib/actions";
 import { type ModuleConfig } from "@/lib/module-config";
 import { cn, currency, prettyDate } from "@/lib/utils";
@@ -14,6 +14,7 @@ type Props = {
   config: ModuleConfig;
   rows: Record<string, any>[];
   relationOptions: Record<string, Record<string, any>[]>;
+  demoMode?: boolean;
 };
 
 type EventGroup = {
@@ -22,6 +23,20 @@ type EventGroup = {
   phone: string;
   rows: Record<string, any>[];
 };
+
+type QuoteEvent = {
+  id: string;
+  name: string;
+  date: string;
+  hours: string;
+};
+
+const quoteDraftStatuses = new Set(["Inquiry", "Enquiry", "Pending"]);
+const quoteSuggestionKey = "fuzzycrm:quote-suggestion";
+
+function demoStorageKey(slug: string) {
+  return `fuzzycrm:demo:${slug}`;
+}
 
 function isShooterOption(option: Record<string, any>) {
   const text = `${option.role ?? ""} ${option.designation ?? ""} ${option.specialty ?? ""}`.toLowerCase();
@@ -75,32 +90,118 @@ function eventLocationSummary(rows: Record<string, any>[]) {
   return `${locations[0]} +${locations.length - 1}`;
 }
 
-export function ModuleManager({ config, rows, relationOptions }: Props) {
+function fullDate(value: string | null | undefined) {
+  if (!value) return "-";
+  const trimmed = value.trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? new Date(`${trimmed}T00:00:00`) : new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return trimmed;
+  return new Intl.DateTimeFormat("en-US", { month: "long", day: "2-digit", year: "numeric" }).format(date);
+}
+
+function quoteCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+}
+
+function canGenerateQuotation(row: Record<string, any>) {
+  return quoteDraftStatuses.has(String(row.status ?? ""));
+}
+
+function clientStatusClass(row: Record<string, any>) {
+  const status = String(row.status ?? "");
+  if (status === "Inquiry" || status === "Enquiry") return "bg-yellow-300 text-yellow-950 ring-yellow-200";
+  if (status === "Quotation Sent") return "bg-orange-300 text-orange-950 ring-orange-200";
+  if (status === "Confirmed") return "bg-green-300 text-green-950 ring-green-200";
+  if (status === "Waiting For Event Date") return "bg-white text-slate-700 ring-line";
+  if (status === "Completed") return "bg-red-300 text-red-950 ring-red-200";
+  if (status === "Cancelled") return "bg-gray-500 text-gray-950 ring-gray-200";
+  return "bg-white text-slate-700 ring-line";
+}
+
+function minimumQuoteHours(value: string | number | null | undefined) {
+  const hours = Number(value ?? 0);
+  if (!hours) return "2";
+  return String(Math.max(hours, 2));
+}
+
+export function ModuleManager({ config, rows, relationOptions, demoMode = false }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get("filter") ?? "all";
   const assignmentFilter = searchParams.get("assignment");
   const groupFilter = searchParams.get("group");
   const [query, setQuery] = useState("");
+  const [localRows, setLocalRows] = useState<Record<string, any>[]>(rows);
   const [filter, setFilter] = useState(initialFilter);
   const [editing, setEditing] = useState<Record<string, any> | null>(null);
   const [open, setOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteContact, setInviteContact] = useState("");
   const [formKey, setFormKey] = useState(0);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [eventDrafts, setEventDrafts] = useState<Record<string, FormDataEntryValue | null>[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [quoteRow, setQuoteRow] = useState<Record<string, any> | null>(null);
+  const [quoteClientName, setQuoteClientName] = useState("");
+  const [quoteEvents, setQuoteEvents] = useState<QuoteEvent[]>([]);
+  const [quoteRate, setQuoteRate] = useState("");
+  const [quoteAdvance, setQuoteAdvance] = useState("");
+  const [quoteNotes, setQuoteNotes] = useState("");
   const hasBoard = Boolean(config.boardColumns?.length);
   const [view, setView] = useState<"board" | "table">(hasBoard ? "board" : "table");
   const [isPending, startTransition] = useTransition();
+  const statusOptions = useMemo(
+    () => config.fields.find((field) => field.name === config.statusField)?.options ?? [],
+    [config.fields, config.statusField]
+  );
+
+  useEffect(() => {
+    if (!demoMode || typeof window === "undefined") {
+      setLocalRows(rows);
+      return;
+    }
+
+    const stored = window.localStorage.getItem(demoStorageKey(config.slug));
+    if (stored) {
+      try {
+        setLocalRows(JSON.parse(stored) as Record<string, any>[]);
+        return;
+      } catch {
+        window.localStorage.removeItem(demoStorageKey(config.slug));
+      }
+    }
+
+    setLocalRows(rows);
+    window.localStorage.setItem(demoStorageKey(config.slug), JSON.stringify(rows));
+  }, [config.slug, demoMode, rows]);
+
+  function persistLocalRows(nextRows: Record<string, any>[]) {
+    setLocalRows(nextRows);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(demoStorageKey(config.slug), JSON.stringify(nextRows));
+    }
+  }
+
+  function hydrateRelations(row: Record<string, any>) {
+    if (!config.relations) return row;
+    const hydrated = { ...row };
+    for (const [field, relation] of Object.entries(config.relations)) {
+      const alias = relation.alias ?? relation.table;
+      hydrated[alias] = (relationOptions[field] ?? []).find((option) => option.id === row[field]) ?? row[alias] ?? null;
+    }
+    return hydrated;
+  }
+
+  const storedRows = demoMode ? localRows.map(hydrateRelations) : rows;
 
   const filterOptions = useMemo(() => {
     if (!config.filterField) return [];
-    return Array.from(new Set(rows.map((row) => row[config.filterField!]).filter(Boolean)));
-  }, [config.filterField, rows]);
+    return Array.from(new Set(storedRows.map((row) => row[config.filterField!]).filter(Boolean)));
+  }, [config.filterField, storedRows]);
 
   const visibleRows = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return rows.filter((row) => {
+    return storedRows.filter((row) => {
       const matchesQuery =
         !normalized ||
         config.searchFields.some((field) => String(getValue(row, field) ?? "").toLowerCase().includes(normalized));
@@ -108,7 +209,7 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
       const matchesGroup =
         groupFilter !== "pending" ||
         config.slug !== "clients" ||
-        ["Inquiry", "Pending", "Waiting For Event Date"].includes(String(row.status ?? ""));
+        ["Inquiry", "Waiting For Event Date"].includes(String(row.status ?? ""));
       const isUnassignedEvent =
         config.slug !== "events" ||
         assignmentFilter !== "unassigned" ||
@@ -116,7 +217,7 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
         !row.video_shooter_id;
       return matchesQuery && matchesFilter && matchesGroup && isUnassignedEvent;
     });
-  }, [assignmentFilter, config, filter, groupFilter, query, rows]);
+  }, [assignmentFilter, config, filter, groupFilter, query, storedRows]);
 
   const eventGroups = useMemo(() => {
     if (config.slug !== "events") return [];
@@ -144,6 +245,12 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
     setOpen(true);
   }
 
+  function resetDemoData() {
+    if (!window.confirm(`Reset ${config.title.toLowerCase()} demo data in this browser?`)) return;
+    window.localStorage.removeItem(demoStorageKey(config.slug));
+    setLocalRows(rows);
+  }
+
   function openEdit(row: Record<string, any>) {
     setEditing(row);
     setSelectedClientId(String(row.client_id ?? ""));
@@ -152,18 +259,184 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
     setOpen(true);
   }
 
+  const openQuote = useCallback((row: Record<string, any>) => {
+    const hours = minimumQuoteHours(row.quoted_hours);
+    setQuoteRow(row);
+    setQuoteClientName(String(row.host_name ?? ""));
+    setQuoteEvents([
+      {
+        id: crypto.randomUUID(),
+        name: String(row.event_type ?? "Wedding"),
+        date: String(row.event_date ?? ""),
+        hours
+      }
+    ]);
+    setQuoteRate(row.quoted_price ? String(row.quoted_price) : "");
+    setQuoteAdvance(row.advance_paid ? String(row.advance_paid) : "");
+    setQuoteNotes(String(row.notes ?? ""));
+    setQuoteOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (config.slug !== "clients" || typeof window === "undefined") return;
+    const raw = window.sessionStorage.getItem(quoteSuggestionKey);
+    if (!raw) return;
+
+    try {
+      const suggestion = JSON.parse(raw) as { createdAt?: number; id?: string; host?: string; contact?: string; eventDate?: string };
+      if (!suggestion.createdAt || Date.now() - suggestion.createdAt > 60000) {
+        window.sessionStorage.removeItem(quoteSuggestionKey);
+        return;
+      }
+
+      const row = storedRows.find((client) => {
+        if (suggestion.id && client.id === suggestion.id) return true;
+        const hostMatches = suggestion.host && String(client.host_name ?? "") === suggestion.host;
+        const contactMatches = suggestion.contact && String(client.contact_no ?? "") === suggestion.contact;
+        const dateMatches = !suggestion.eventDate || String(client.event_date ?? "") === suggestion.eventDate;
+        return Boolean(hostMatches && dateMatches && (!suggestion.contact || contactMatches));
+      });
+
+      if (row && canGenerateQuotation(row)) {
+        window.sessionStorage.removeItem(quoteSuggestionKey);
+        openQuote(row);
+      }
+    } catch {
+      window.sessionStorage.removeItem(quoteSuggestionKey);
+    }
+  }, [config.slug, openQuote, storedRows]);
+
+  function updateQuoteEvent(id: string, patch: Partial<QuoteEvent>) {
+    setQuoteEvents((current) => current.map((event) => (event.id === id ? { ...event, ...patch } : event)));
+  }
+
+  function addQuoteEvent() {
+    setQuoteEvents((current) => [...current, { id: crypto.randomUUID(), name: "", date: "", hours: "2" }]);
+  }
+
+  function removeQuoteEvent(id: string) {
+    setQuoteEvents((current) => (current.length > 1 ? current.filter((event) => event.id !== id) : current));
+  }
+
+  function payloadFromForm(formData: FormData) {
+    const payload: Record<string, any> = {};
+    for (const field of config.fields) {
+      const raw = formData.get(field.name);
+      const value = raw === null || String(raw).trim() === "" ? null : String(raw).trim();
+      payload[field.name] = field.type === "number" && value !== null ? Number(value) : value;
+    }
+
+    if (config.slug === "clients") {
+      const quotedHours = Number(payload.quoted_hours ?? 0);
+      const quotedPrice = Number(payload.quoted_price ?? 0);
+      const total = Number(payload.total_price ?? quotedHours * quotedPrice);
+      const advance = Number(payload.advance_paid ?? 0);
+      payload.total_price = total;
+      payload.balance_due = Math.max(total - advance, 0);
+    }
+
+    if (config.slug === "events") {
+      const initial = Number(payload.total_initial_hours ?? 0);
+      const extra = Number(payload.extra_hours ?? 0);
+      payload.total_hours = initial + extra;
+      if (!payload.event_name && payload.client_id) {
+        payload.event_name = relationOptions.client_id?.find((client) => client.id === payload.client_id)?.event_type ?? "Untitled celebration";
+      }
+    }
+
+    return payload;
+  }
+
+  function saveLocalRecord(formData: FormData) {
+    const id = String(formData.get("id") ?? "");
+    const now = new Date().toISOString();
+    const payload = payloadFromForm(formData);
+    let nextRows: Record<string, any>[];
+
+    if (id) {
+      nextRows = localRows.map((row) => (row.id === id ? { ...row, ...payload, updated_at: now } : row));
+    } else {
+      if (config.slug === "clients" && !payload.client_number) {
+        const maxClientNumber = localRows.reduce((max, row) => Math.max(max, Number(row.client_number ?? 0)), 1000);
+        payload.client_number = maxClientNumber + 1;
+      }
+      nextRows = [{ id: crypto.randomUUID(), ...payload, created_at: now, updated_at: now }, ...localRows];
+    }
+
+    persistLocalRows(nextRows);
+  }
+
+  function saveLocalBatch(records: Record<string, FormDataEntryValue | null>[]) {
+    const now = new Date().toISOString();
+    const nextRows = records.map((record) => {
+      const formData = new FormData();
+      for (const [key, value] of Object.entries(record)) {
+        if (value !== null) formData.set(key, value);
+      }
+      return { id: crypto.randomUUID(), ...payloadFromForm(formData), created_at: now, updated_at: now };
+    });
+    persistLocalRows([...nextRows, ...localRows]);
+  }
+
   function remove(row: Record<string, any>) {
     if (!window.confirm("Delete this record? This action cannot be undone.")) return;
+    if (demoMode) {
+      persistLocalRows(localRows.filter((current) => current.id !== row.id));
+      return;
+    }
     startTransition(async () => {
       await deleteRecord(config.slug, row.id);
     });
   }
 
   function move(row: Record<string, any>, status: string) {
+    if (demoMode && config.statusField) {
+      const now = new Date().toISOString();
+      persistLocalRows(localRows.map((current) => (current.id === row.id ? { ...current, [config.statusField!]: status, updated_at: now } : current)));
+      return;
+    }
     startTransition(async () => {
       await updateStatus(config.slug, row.id, status);
       router.refresh();
     });
+  }
+
+  function changeRowStatus(row: Record<string, any>, status: string) {
+    if (!status || !config.statusField) return;
+    if (demoMode) {
+      const now = new Date().toISOString();
+      persistLocalRows(localRows.map((current) => (current.id === row.id ? { ...current, [config.statusField!]: status, updated_at: now } : current)));
+      return;
+    }
+    startTransition(async () => {
+      await updateStatus(config.slug, row.id, status);
+      router.refresh();
+    });
+  }
+
+  function renderTableCell(row: Record<string, any>, column: ModuleConfig["columns"][number]) {
+    if (config.slug === "clients" && column.key === "status" && statusOptions.length) {
+      return (
+        <select
+          aria-label={`Change status for ${row.host_name ?? row.client_number ?? "client"}`}
+          defaultValue={String(row.status ?? "")}
+          disabled={isPending}
+          onChange={(event) => changeRowStatus(row, event.target.value)}
+          className={cn(
+            "w-full min-w-36 rounded-lg border border-transparent px-2.5 py-1.5 text-sm font-semibold outline-none ring-1 transition focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-60",
+            clientStatusClass(row)
+          )}
+        >
+          <option value="">Select status</option>
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    return formatCell(row, column);
   }
 
   function selectedClientEventCount() {
@@ -198,7 +471,37 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
   }
 
   function handleFormSubmit(event: React.FormEvent<HTMLFormElement>) {
-    if (!isBatchEventCreate()) return;
+    if (demoMode && !isBatchEventCreate()) {
+      event.preventDefault();
+      saveLocalRecord(new FormData(event.currentTarget));
+      setOpen(false);
+      setEditing(null);
+      setSelectedClientId("");
+      setEventDrafts([]);
+      return;
+    }
+
+    if (!isBatchEventCreate()) {
+      if (config.slug === "clients" && typeof window !== "undefined") {
+        const form = event.currentTarget;
+        const status = String((form.elements.namedItem("status") as HTMLSelectElement | null)?.value || "");
+        if (status === "Inquiry") {
+          window.sessionStorage.setItem(
+            quoteSuggestionKey,
+            JSON.stringify({
+              createdAt: Date.now(),
+              id: String((form.elements.namedItem("id") as HTMLInputElement | null)?.value || ""),
+              host: String((form.elements.namedItem("host_name") as HTMLInputElement | null)?.value || ""),
+              contact: String((form.elements.namedItem("contact_no") as HTMLInputElement | null)?.value || ""),
+              eventDate: String((form.elements.namedItem("event_date") as HTMLInputElement | null)?.value || "")
+            })
+          );
+        } else {
+          window.sessionStorage.removeItem(quoteSuggestionKey);
+        }
+      }
+      return;
+    }
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const nextDraft = Object.fromEntries(formData.entries()) as Record<string, FormDataEntryValue>;
@@ -213,6 +516,14 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
     }
 
     startTransition(async () => {
+      if (demoMode) {
+        saveLocalBatch(drafts);
+        setOpen(false);
+        setEditing(null);
+        setEventDrafts([]);
+        setSelectedClientId("");
+        return;
+      }
       await saveEventBatch(drafts);
       setOpen(false);
       setEditing(null);
@@ -222,6 +533,114 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
     });
   }
 
+  const quoteHours = useMemo(
+    () => quoteEvents.reduce((sum, event) => sum + Math.max(Number(event.hours || 0), 2), 0),
+    [quoteEvents]
+  );
+  const quoteTotal = quoteHours * Number(quoteRate || 0);
+  const quoteBalance = Math.max(quoteTotal - Number(quoteAdvance || 0), 0);
+  const quoteEventSummary = quoteEvents
+    .filter((event) => event.name || event.date || event.hours)
+    .map((event) => `${event.name || "Event"} - ${event.date ? fullDate(event.date) : "Date TBD"} - ${event.hours || 0} hours`)
+    .join("\n");
+  const quoteMessage = quoteRow
+    ? `Quotation for ${quoteClientName || quoteRow.host_name || "Client"}\n\n${quoteEventSummary}\n\nFor all your events, our charges are: ${quoteCurrency(quoteTotal)}\nAdvance: ${quoteCurrency(Number(quoteAdvance || 0))}\nBalance: ${quoteCurrency(quoteBalance)}${quoteNotes ? `\n\nNotes: ${quoteNotes}` : ""}`
+    : "";
+  const isQuoteViewMode = Boolean(quoteRow && !canGenerateQuotation(quoteRow));
+  const quoteActionLabel = isQuoteViewMode ? "View Quotation" : "Generate Quotation";
+
+  function quoteDocumentFilename() {
+    const client = String(quoteClientName || quoteRow?.host_name || "Client")
+      .trim()
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-|-$/g, "");
+    return `${client || "Client"}-Wedding-Photography-Quotation.doc`;
+  }
+
+  function quoteDocumentHtml() {
+    const quoteDocument = document.querySelector(".quote-print-area");
+    if (!quoteDocument) throw new Error("Quotation preview is not available");
+    const css = Array.from(document.styleSheets)
+      .map((sheet) => {
+        try {
+          return Array.from(sheet.cssRules).map((rule) => rule.cssText).join("\n");
+        } catch {
+          return "";
+        }
+      })
+      .join("\n");
+
+    return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Wedding Photography Quotation</title>
+    <style>
+      body { margin: 0; background: #ffffff; }
+      ${css}
+      .quote-print-area { position: static !important; width: 794px; margin: 0 auto; box-shadow: none !important; }
+    </style>
+  </head>
+  <body>${quoteDocument.outerHTML}</body>
+</html>`;
+  }
+
+  function quoteDocumentFile() {
+    return new File([quoteDocumentHtml()], quoteDocumentFilename(), { type: "application/msword" });
+  }
+
+  function downloadQuoteDocument(file = quoteDocumentFile()) {
+    const url = URL.createObjectURL(file);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = file.name;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function shareQuoteDocument() {
+    const file = quoteDocumentFile();
+    const nav = navigator as Navigator & {
+      canShare?: (data: ShareData) => boolean;
+      share?: (data: ShareData) => Promise<void>;
+    };
+    const shareData: ShareData = {
+      title: "Wedding Photography Quotation",
+      text: quoteMessage,
+      files: [file]
+    };
+
+    if (nav.share && (!nav.canShare || nav.canShare(shareData))) {
+      await nav.share(shareData);
+      return true;
+    }
+
+    downloadQuoteDocument(file);
+    return false;
+  }
+
+  async function sendQuoteDocumentViaWhatsApp() {
+    if (!quoteRow) throw new Error("No quotation is selected");
+    const file = quoteDocumentFile();
+    const payload = new FormData();
+    payload.set("phone", String(quoteRow.contact_no ?? ""));
+    payload.set("message", quoteMessage);
+    payload.set("filename", file.name);
+    payload.set("document", file, file.name);
+
+    const response = await fetch("/api/whatsapp/send-quotation", {
+      method: "POST",
+      body: payload
+    });
+    const result = (await response.json().catch(() => ({}))) as { error?: string };
+
+    if (!response.ok) {
+      throw new Error(result.error || "Unable to send quotation through WhatsApp API");
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
@@ -229,14 +648,33 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
           <h1 className="text-2xl font-bold tracking-tight text-ink">{config.title}</h1>
           <p className="mt-1 text-sm text-muted">{config.description}</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-dark active:scale-[0.98]"
-        >
-          <Plus className="h-4 w-4" />
-          Add {config.title.replace(/s$/, "")}
-        </button>
+        <div className="flex items-center gap-2">
+          {config.slug === "clients" ? (
+            <button
+              onClick={() => setInviteOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-mist"
+            >
+              Invite
+            </button>
+          ) : null}
+          <button
+            onClick={openCreate}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-dark active:scale-[0.98]"
+          >
+            <Plus className="h-4 w-4" />
+            Add {config.title.replace(/s$/, "")}
+          </button>
+        </div>
       </div>
+
+      {demoMode ? (
+        <div className="flex flex-col justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center">
+          <span>Demo mode: changes are saved in this browser only.</span>
+          <button type="button" onClick={resetDemoData} className="self-start rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 sm:self-auto">
+            Reset demo data
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-3 rounded-xl border border-line bg-white p-3 shadow-card md:flex-row md:items-center">
         <label className="relative flex-1">
@@ -381,7 +819,7 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                   <tr key={row.id} className="transition hover:bg-mist/50">
                     {config.columns.map((column) => (
                       <td key={column.key} className="max-w-64 truncate px-4 py-3 text-slate-700">
-                        {formatCell(row, column)}
+                        {renderTableCell(row, column)}
                       </td>
                     ))}
                     <td className="px-4 py-3">
@@ -389,6 +827,29 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                         <button aria-label="Edit" title="Edit" onClick={() => openEdit(row)} className="rounded-lg border border-line p-2 text-slate-600 transition hover:bg-mist hover:text-ink">
                           <Edit className="h-4 w-4" />
                         </button>
+                        {config.slug === "clients" ? (
+                          canGenerateQuotation(row) ? (
+                            <button
+                              aria-label="Build Quote"
+                              title="Build Quote"
+                              onClick={() => openQuote(row)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-mist hover:text-ink"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Build Quote
+                            </button>
+                          ) : (
+                            <button
+                              aria-label="Peek Quote"
+                              title="Peek quote"
+                              onClick={() => openQuote(row)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-mist hover:text-ink"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Peek Quote
+                            </button>
+                          )
+                        ) : null}
                         <button aria-label="Delete" title="Delete" disabled={isPending} onClick={() => remove(row)} className="rounded-lg border border-line p-2 text-rose-600 transition hover:bg-rose-50 disabled:opacity-50">
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -423,7 +884,7 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
             </div>
             <form
               key={formKey}
-              action={isBatchEventCreate() ? undefined : saveRecord.bind(null, config.slug)}
+              action={demoMode || isBatchEventCreate() ? undefined : saveRecord.bind(null, config.slug)}
               onInput={handleClientMath}
               onSubmit={handleFormSubmit}
               className="grid gap-4 p-6 sm:grid-cols-2"
@@ -507,6 +968,270 @@ export function ModuleManager({ config, rows, relationOptions }: Props) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {quoteOpen && quoteRow ? (
+        <div className="fixed inset-0 z-50 grid animate-fade-in place-items-center bg-ink/50 p-4 backdrop-blur-sm" onClick={() => setQuoteOpen(false)}>
+          <div
+            className={cn(
+              "max-h-[94vh] w-full animate-scale-in overflow-hidden rounded-2xl bg-white shadow-lift",
+              isQuoteViewMode ? "max-w-4xl" : "max-w-6xl"
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="quote-modal-header flex items-center justify-between border-b border-line px-6 py-4">
+              <h3 className="text-lg font-semibold text-ink">{quoteActionLabel} — {quoteClientName || quoteRow.host_name || quoteRow.client_number}</h3>
+              <button aria-label="Close" title="Close" onClick={() => setQuoteOpen(false)} className="rounded-lg p-2 text-muted transition hover:bg-mist hover:text-ink">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div
+              className={cn(
+                "grid max-h-[calc(94vh-73px)] gap-6 overflow-y-auto p-6",
+                isQuoteViewMode ? "justify-items-center" : "lg:grid-cols-[380px_1fr]"
+              )}
+            >
+              {!isQuoteViewMode ? (
+                <div className="quote-controls grid content-start gap-4">
+                  <label>
+                    <span className="text-sm font-medium text-slate-700">Client name</span>
+                    <input value={quoteClientName} onChange={(event) => setQuoteClientName(event.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                  </label>
+                  <div className="grid gap-3 rounded-lg border border-line p-3">
+                    <span className="text-sm font-semibold text-ink">Event details</span>
+                    {quoteEvents.map((event, index) => (
+                      <div key={event.id} className="grid gap-2 rounded-md bg-canvas p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold uppercase text-muted">Event {index + 1}</span>
+                          <button type="button" aria-label="Remove event" title="Remove event" onClick={() => removeQuoteEvent(event.id)} className="rounded-md p-1.5 text-rose-600 hover:bg-rose-50">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <input value={event.name} onChange={(change) => updateQuoteEvent(event.id, { name: change.target.value })} placeholder="Haldi, Wedding, Reception..." className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand" />
+                        <div className="grid grid-cols-[1fr_88px] gap-2">
+                          <input type="date" value={event.date} onChange={(change) => updateQuoteEvent(event.id, { date: change.target.value })} className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand" />
+                          <input
+                            type="number"
+                            min="2"
+                            step="0.5"
+                            value={event.hours}
+                            onChange={(change) => {
+                              const value = change.target.value;
+                              updateQuoteEvent(event.id, { hours: value && Number(value) < 2 ? "2" : value });
+                            }}
+                            onBlur={(change) => updateQuoteEvent(event.id, { hours: minimumQuoteHours(change.target.value) })}
+                            placeholder="Hours"
+                            className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" onClick={addQuoteEvent} className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-mist">
+                      <Plus className="h-4 w-4" /> Add Event
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label>
+                      <span className="text-sm font-medium text-slate-700">Rate per hour</span>
+                      <input type="number" min="0" step="0.01" value={quoteRate} onChange={(event) => setQuoteRate(event.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                    </label>
+                    <label>
+                      <span className="text-sm font-medium text-slate-700">Advance</span>
+                      <input type="number" min="0" step="0.01" value={quoteAdvance} onChange={(event) => setQuoteAdvance(event.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                    </label>
+                  </div>
+                  <div className="rounded-lg border border-line bg-mist/40 p-3 text-sm text-slate-700">
+                    <p className="flex justify-between"><span>Total hours</span><strong>{quoteHours}</strong></p>
+                    <p className="mt-1 flex justify-between"><span>Total quote</span><strong>{quoteCurrency(quoteTotal)}</strong></p>
+                    <p className="mt-1 flex justify-between"><span>Balance after advance</span><strong>{quoteCurrency(quoteBalance)}</strong></p>
+                  </div>
+                  <label>
+                    <span className="text-sm font-medium text-slate-700">Internal notes / message note</span>
+                    <textarea value={quoteNotes} onChange={(event) => setQuoteNotes(event.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" rows={3} />
+                  </label>
+                </div>
+              ) : null}
+              <div className={cn("quote-preview-shell", isQuoteViewMode && "w-full")}>
+                <div className="quote-page quote-print-area bg-white text-[#3d493f]">
+                  <div className="quote-logo">
+                    <div className="quote-logo-small">THE</div>
+                    <div className="quote-logo-word">HITCHED</div>
+                    <div className="quote-logo-mark">♡</div>
+                    <div className="quote-logo-word">STORIES</div>
+                  </div>
+                  <p className="quote-prepared">Prepared for {quoteClientName || quoteRow.host_name || "Client"}</p>
+                  <section>
+                    <h2>Vision</h2>
+                    <p>
+                      We are a team of wedding photographers who capture memories that will transcend generations and become a cherished part of a family heirloom. Our experience gives us an intimate understanding of rituals, a keen eye for capturing precious moments between loved ones and a strong sense of lighting & composition to create iconic portraits at your events.
+                    </p>
+                  </section>
+                  <section>
+                    <h2>Details of your Events</h2>
+                    <table className="quote-table">
+                      <thead>
+                        <tr>
+                          <th>Event</th>
+                          <th>Date</th>
+                          <th>Hours</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {quoteEvents.map((event) => (
+                          <tr key={event.id}>
+                            <td>{event.name || "-"}</td>
+                            <td>{fullDate(event.date)}</td>
+                            <td>{event.hours || "0"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </section>
+                  <section>
+                    <h2>Pricing</h2>
+                    <p>
+                      Congratulations on your big day! We are delighted to be a part of your celebration! <strong>For all your events, our charges are: {quoteCurrency(quoteTotal)}</strong>
+                    </p>
+                    {Number(quoteAdvance || 0) > 0 ? <p><strong>Advance received:</strong> {quoteCurrency(Number(quoteAdvance || 0))}. <strong>Balance due:</strong> {quoteCurrency(quoteBalance)}.</p> : null}
+                  </section>
+                  <section>
+                    <h2>Deliverables</h2>
+                    <ul>
+                      <li>Edited Photos Online Gallery access of all wedding events.</li>
+                      <li>Edited 4K Candid Cinematic Highlights video (8 to 12 mins) encompassing all events.</li>
+                      <li>Full-length documentary video (45mins to 1hr duration) delivered in stunning 4K for the Wedding events.</li>
+                      <li>Live streaming service for the Wedding and Cocktail events (Note: Client to provide high-speed Internet).</li>
+                      <li>A curated collection of the best 50-100 edited photos from all events will be shared once the outstanding invoice balance is settled in full.</li>
+                      <li><strong>Final Delivery:</strong> Complete deliverables will be securely delivered digitally within 60 days from the date the final payment is cleared.</li>
+                    </ul>
+                  </section>
+                  <section className="quote-break">
+                    <h2>Terms and Conditions</h2>
+                    <ul>
+                      <li><strong>Deposit:</strong> A 20% non-refundable deposit is required to secure the date.</li>
+                      <li><strong>Cancellation:</strong> Written notice is required for cancellations. The deposit is non-refundable.</li>
+                      <li><strong>Re-Edits:</strong> Re-edits can be taken into consideration for pictures and wedding films. Please communicate the required changes with notice.</li>
+                      <li>Any extra events not mentioned in quote will not be covered by Hitched Stories.</li>
+                    </ul>
+                  </section>
+                  <section>
+                    <h2>Contact Information</h2>
+                    <ul>
+                      <li><strong>Email:</strong> thehitchedstories@gmail.com</li>
+                      <li><strong>Phone:</strong> (214) 836-6275</li>
+                    </ul>
+                    <p>We look forward to the opportunity of being a part of your wedding and capturing memories that will last a lifetime!</p>
+                  </section>
+                </div>
+              </div>
+              <div className={cn("quote-actions flex w-full justify-end gap-2", !isQuoteViewMode && "lg:col-span-2")}>
+                <button onClick={() => setQuoteOpen(false)} className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-mist">Close</button>
+                <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-mist">
+                  <Printer className="h-4 w-4" /> Print / Save PDF
+                </button>
+                <button onClick={() => downloadQuoteDocument()} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-mist">
+                  <FileText className="h-4 w-4" /> Download Document
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const shared = await shareQuoteDocument();
+                      if (!shared) {
+                        window.open(`mailto:${quoteRow.email ?? ""}?subject=Wedding Photography Quotation&body=${encodeURIComponent(`${quoteMessage}\n\nThe quotation document has been downloaded. Please attach it to this email.`)}`);
+                      }
+                    } catch (error) {
+                      if ((error as Error).name !== "AbortError") {
+                        downloadQuoteDocument();
+                        window.open(`mailto:${quoteRow.email ?? ""}?subject=Wedding Photography Quotation&body=${encodeURIComponent(`${quoteMessage}\n\nThe quotation document has been downloaded. Please attach it to this email.`)}`);
+                      }
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-mist"
+                >
+                  <Mail className="h-4 w-4" /> Email Document
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await sendQuoteDocumentViaWhatsApp();
+                      startTransition(async () => {
+                        if (quoteRow?.id && canGenerateQuotation(quoteRow)) {
+                          if (demoMode) {
+                            const now = new Date().toISOString();
+                            persistLocalRows(localRows.map((row) => (row.id === quoteRow.id ? { ...row, status: "Quotation Sent", updated_at: now } : row)));
+                          } else {
+                            await updateStatus("clients", quoteRow.id, "Quotation Sent");
+                          }
+                        }
+                        setQuoteOpen(false);
+                        router.refresh();
+                      });
+                    } catch (error) {
+                      downloadQuoteDocument();
+                      window.alert(`${(error as Error).message}\n\nThe quotation document was downloaded instead. Once WhatsApp API credentials are configured, this button will send the document directly.`);
+                    }
+                  }}
+                  className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+                >
+                  {canGenerateQuotation(quoteRow) ? "Send Document via WhatsApp API & Mark Sent" : "Send Document via WhatsApp API"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {inviteOpen ? (
+        <div className="fixed inset-0 z-50 grid animate-fade-in place-items-center bg-ink/50 p-4 backdrop-blur-sm" onClick={() => setInviteOpen(false)}>
+          <div
+            className="w-full max-w-md animate-scale-in overflow-hidden rounded-2xl bg-white shadow-lift"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-line px-6 py-4">
+              <h3 className="text-lg font-semibold text-ink">Invite client to fill details</h3>
+              <button aria-label="Close" title="Close" onClick={() => setInviteOpen(false)} className="rounded-lg p-2 text-muted transition hover:bg-mist hover:text-ink">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-muted">Enter the client&apos;s phone number (international format) or email. We&apos;ll open WhatsApp with a link to the intake form.</p>
+              <label className="mt-4 block">
+                <span className="text-sm font-medium text-slate-700">Phone or email</span>
+                <input
+                  value={inviteContact}
+                  onChange={(e) => setInviteContact(e.target.value)}
+                  placeholder="e.g. +911234567890 or name@example.com"
+                  className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none"
+                />
+              </label>
+              <div className="mt-6 flex justify-end gap-2">
+                <button onClick={() => setInviteOpen(false)} className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-mist">Cancel</button>
+                <button
+                  onClick={() => {
+                    const contact = inviteContact.trim();
+                    if (!contact) return;
+                    const base = `${location.origin}/client-intake`;
+                    const url = contact.includes("@") ? `${base}?email=${encodeURIComponent(contact)}` : `${base}?phone=${encodeURIComponent(contact)}`;
+                    const message = `Hi! Please fill your client details here: ${url}`;
+                    const phoneOnly = contact.replace(/\D/g, "");
+                    if (contact.includes("@") || phoneOnly.length < 4) {
+                      // fallback to mailto for emails or invalid phone
+                      if (contact.includes("@")) window.open(`mailto:${contact}?subject=Please fill client details&body=${encodeURIComponent(message)}`);
+                      else window.open(url, "_blank", "noopener,noreferrer");
+                    } else {
+                      window.open(`https://wa.me/${phoneOnly}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+                    }
+                    setInviteOpen(false);
+                    setInviteContact("");
+                  }}
+                  className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+                >
+                  Send Invite
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

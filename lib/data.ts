@@ -4,6 +4,7 @@ import { type ModuleConfig } from "@/lib/module-config";
 export type Row = Record<string, any>;
 
 export async function getModuleData(config: ModuleConfig) {
+  const demoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabase = createClient();
   const relationSelect = config.relations
     ? Object.entries(config.relations).map(([field, relation]) => `${relation.alias ?? relation.table}:${field}(${relation.select})`)
@@ -18,7 +19,7 @@ export async function getModuleData(config: ModuleConfig) {
   ]);
 
   if (error) throw new Error(error.message);
-  return { rows: data ?? [], relationOptions: relationEntries };
+  return { rows: data ?? [], relationOptions: relationEntries, demoMode };
 }
 
 export async function getRelationOptions(config: ModuleConfig) {

@@ -5,5 +5,5 @@ import { modules } from "@/lib/module-config";
 export default async function EventsPage() {
   const config = modules.events;
   const data = await getModuleData(config);
-  return <ModuleManager config={config} rows={data.rows} relationOptions={data.relationOptions} />;
+  return <ModuleManager config={config} rows={data.rows} relationOptions={data.relationOptions} demoMode={data.demoMode} />;
 }

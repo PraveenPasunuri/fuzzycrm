@@ -345,3 +345,22 @@ alter table public.events add column if not exists changes_requested boolean not
 alter table public.events add column if not exists pipeline_closed boolean not null default false;
 create index if not exists idx_events_photo_editor_id on public.events(photo_editor_id);
 create index if not exists idx_events_video_editor_id on public.events(video_editor_id);
+create index if not exists idx_events_video_traditional_editor_id on public.events(video_traditional_editor_id);
+
+-- =========================
+-- MIGRATION: traditional video and payment tracking
+-- =========================
+alter table public.events add column if not exists video_traditional_data_received boolean not null default false;
+alter table public.events add column if not exists video_traditional_catalog_link text;
+alter table public.events add column if not exists video_traditional_data_uploaded boolean not null default false;
+alter table public.events add column if not exists video_traditional_editor_id uuid references public.team_members(id) on delete set null;
+alter table public.events add column if not exists video_traditional_editing_completed boolean not null default false;
+
+alter table public.events add column if not exists photo_data_uploaded boolean not null default false;
+alter table public.events add column if not exists video_data_uploaded boolean not null default false;
+
+alter table public.events add column if not exists photo_editor_payment numeric(12,2);
+alter table public.events add column if not exists video_editor_payment numeric(12,2);
+alter table public.events add column if not exists video_traditional_editor_payment numeric(12,2);
+
+create index if not exists idx_events_video_traditional_editor_id on public.events(video_traditional_editor_id);

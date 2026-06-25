@@ -34,9 +34,10 @@ export const tracks: TrackDef[] = [
     title: "Photo",
     stages: [
       { key: "photo_data_received", label: "Data received", field: "photo_data_received", kind: "toggle", color: "bg-sky-500" },
-      { key: "photo_catalog_link", label: "Catalog", field: "photo_catalog_link", kind: "link", color: "bg-cyan-500" },
+      { key: "photo_catalog_link", label: "Catalog created", field: "photo_catalog_link", kind: "link", color: "bg-cyan-500" },
+      { key: "photo_data_uploaded", label: "Data uploaded", field: "photo_data_uploaded", kind: "toggle", color: "bg-blue-500" },
       { key: "photo_editor_id", label: "Editor assigned", field: "photo_editor_id", kind: "editor", color: "bg-indigo-500" },
-      { key: "photo_editing_completed", label: "Editing done", field: "photo_editing_completed", kind: "toggle", color: "bg-violet-500" }
+      { key: "photo_editing_completed", label: "Editing completed", field: "photo_editing_completed", kind: "toggle", color: "bg-violet-500" }
     ]
   },
   {
@@ -44,9 +45,21 @@ export const tracks: TrackDef[] = [
     title: "Video",
     stages: [
       { key: "video_data_received", label: "Data received", field: "video_data_received", kind: "toggle", color: "bg-sky-500" },
-      { key: "video_catalog_link", label: "Catalog", field: "video_catalog_link", kind: "link", color: "bg-cyan-500" },
+      { key: "video_catalog_link", label: "Catalog created", field: "video_catalog_link", kind: "link", color: "bg-cyan-500" },
+      { key: "video_data_uploaded", label: "Data uploaded", field: "video_data_uploaded", kind: "toggle", color: "bg-blue-500" },
       { key: "video_editor_id", label: "Editor assigned", field: "video_editor_id", kind: "editor", color: "bg-indigo-500" },
-      { key: "video_editing_completed", label: "Editing done", field: "video_editing_completed", kind: "toggle", color: "bg-violet-500" }
+      { key: "video_editing_completed", label: "Editing completed", field: "video_editing_completed", kind: "toggle", color: "bg-violet-500" }
+    ]
+  },
+  {
+    id: "video_traditional",
+    title: "Traditional Video",
+    stages: [
+      { key: "video_traditional_data_received", label: "Data received", field: "video_traditional_data_received", kind: "toggle", color: "bg-sky-500" },
+      { key: "video_traditional_catalog_link", label: "Catalog created", field: "video_traditional_catalog_link", kind: "link", color: "bg-cyan-500" },
+      { key: "video_traditional_data_uploaded", label: "Data uploaded", field: "video_traditional_data_uploaded", kind: "toggle", color: "bg-blue-500" },
+      { key: "video_traditional_editor_id", label: "Editor assigned", field: "video_traditional_editor_id", kind: "editor", color: "bg-indigo-500" },
+      { key: "video_traditional_editing_completed", label: "Editing completed", field: "video_traditional_editing_completed", kind: "toggle", color: "bg-violet-500" }
     ]
   },
   {

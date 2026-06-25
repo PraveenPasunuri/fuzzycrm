@@ -46,3 +46,146 @@ textarea {
   background-color: #94a3b8;
   background-clip: content-box;
 }
+
+.quote-preview-shell {
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.quote-page {
+  width: min(100%, 794px);
+  min-height: 1123px;
+  margin: 0 auto;
+  padding: 56px 46px;
+  box-shadow: 0 16px 45px rgba(15, 23, 42, 0.12);
+  font-family: "Comic Sans MS", "Trebuchet MS", Arial, sans-serif;
+  font-size: 19px;
+  line-height: 1.45;
+}
+
+.quote-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 120px;
+  margin-bottom: 42px;
+  color: #777368;
+}
+
+.quote-logo-small {
+  border-left: 1px solid #d6d6d0;
+  padding-left: 28px;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.quote-logo-word {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.quote-logo-mark {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 92px;
+  color: #8a867c;
+  font-family: Georgia, serif;
+  font-size: 44px;
+}
+
+.quote-prepared {
+  margin: -26px 0 34px;
+  text-align: center;
+  color: #647067;
+  font-size: 16px;
+}
+
+.quote-page section {
+  margin-top: 24px;
+}
+
+.quote-page h2 {
+  margin: 0 0 18px;
+  color: #020617;
+  font-size: 29px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.quote-page p {
+  margin: 0 0 14px;
+}
+
+.quote-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #020617;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+}
+
+.quote-table th,
+.quote-table td {
+  border: 2px solid #d0d0d0;
+  padding: 12px;
+  text-align: center;
+}
+
+.quote-table th {
+  background: #e5e5e5;
+  font-weight: 700;
+}
+
+.quote-table td:last-child {
+  font-weight: 700;
+}
+
+.quote-page ul {
+  margin: 0;
+  padding-left: 30px;
+}
+
+.quote-page li {
+  margin: 4px 0;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .quote-print-area,
+  .quote-print-area * {
+    visibility: visible;
+  }
+
+  .quote-print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    min-height: auto;
+    padding: 36px 42px;
+    box-shadow: none;
+  }
+
+  .quote-modal-header,
+  .quote-controls,
+  .quote-actions {
+    display: none !important;
+  }
+
+  .quote-break {
+    break-before: page;
+  }
+
+  @page {
+    margin: 0.35in;
+  }
+}
