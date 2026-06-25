@@ -48,8 +48,7 @@ create table public.clients (
   status text check (
     status is null or status in (
       'Inquiry',
-      'Pending',
-      'Waiting For Event Date',
+      'Quotation Sent',
       'Confirmed',
       'Completed',
       'Cancelled'
@@ -121,8 +120,6 @@ create table public.events (
   video_shooter_id uuid references public.team_members(id) on delete set null,
 
   requirement text,
-  photo_data_uploaded text,
-  video_data_uploaded text,
 
   total_initial_hours numeric(10,2),
   extra_hours numeric(10,2),
@@ -134,13 +131,24 @@ create table public.events (
   -- Photo track
   photo_data_received boolean not null default false,
   photo_catalog_link text,
+  photo_data_uploaded boolean not null default false,
   photo_editor_id uuid references public.team_members(id) on delete set null,
   photo_editing_completed boolean not null default false,
+  photo_editor_payment numeric(12,2),
   -- Video track
   video_data_received boolean not null default false,
   video_catalog_link text,
+  video_data_uploaded boolean not null default false,
   video_editor_id uuid references public.team_members(id) on delete set null,
   video_editing_completed boolean not null default false,
+  video_editor_payment numeric(12,2),
+  -- Traditional video track
+  video_traditional_data_received boolean not null default false,
+  video_traditional_catalog_link text,
+  video_traditional_data_uploaded boolean not null default false,
+  video_traditional_editor_id uuid references public.team_members(id) on delete set null,
+  video_traditional_editing_completed boolean not null default false,
+  video_traditional_editor_payment numeric(12,2),
   -- Shared delivery tail
   delivered_to_client boolean not null default false,
   changes_requested boolean not null default false,
@@ -257,6 +265,44 @@ create index idx_clients_host_name on public.clients(host_name);
 
 create index idx_team_members_role on public.team_members(role);
 create index idx_team_members_name on public.team_members(name);
+
+create index idx_events_client_id on public.events(client_id);
+create index idx_events_status on public.events(status);
+create index idx_events_event_date on public.events(event_date);
+create index idx_events_photo_shooter_id on public.events(photo_shooter_id);
+create index idx_events_video_shooter_id on public.events(video_shooter_id);
+
+create index idx_deliverables_event_id on public.deliverables(event_id);
+create index idx_deliverables_status on public.deliverables(status);
+create index idx_deliverables_due_date on public.deliverables(due_date);
+
+create index idx_editing_tasks_client_id on public.editing_tasks(client_id);
+create index idx_editing_tasks_event_id on public.editing_tasks(event_id);
+create index idx_editing_tasks_status on public.editing_tasks(status);
+create index idx_editing_tasks_expected_delivery_date on public.editing_tasks(expected_delivery_date);
+
+-- =========================
+-- UPDATED_AT TRIGGERS
+-- =========================
+create trigger set_clients_updated_at
+before update on public.clients
+for each row execute function public.set_updated_at();
+
+create trigger set_team_members_updated_at
+before update on public.team_members
+for each row execute function public.set_updated_at();
+
+create trigger set_events_updated_at
+before update on public.events
+for each row execute function public.set_updated_at();
+
+create trigger set_deliverables_updated_at
+before update on public.deliverables
+for each row execute function public.set_updated_at();
+
+create trigger set_editing_tasks_updated_at
+before update on public.editing_tasks
+for each row execute function public.set_updated_at();
 
 create index idx_events_client_id on public.events(client_id);
 create index idx_events_event_date on public.events(event_date);

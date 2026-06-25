@@ -134,6 +134,22 @@ To send quotation documents directly through WhatsApp, create a Meta Developer a
 
 Client phone numbers must include a country code. For 10-digit US numbers, the app prefixes `1` automatically.
 
+## API Routes
+
+The app exposes simple JSON APIs for integration/testing:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/modules/:slug` | List records for `clients`, `events`, `deliverables`, `editing-tasks`, or `editors`. |
+| `POST` | `/api/modules/:slug` | Create a record using the same fields as the UI module. |
+| `PATCH` | `/api/modules/:slug/:id` | Update a record by UUID. |
+| `DELETE` | `/api/modules/:slug/:id` | Delete a record by UUID. |
+| `PATCH` | `/api/events/:id/tracking` | Update a data-management pipeline field. Body: `{ "field": "...", "value": true }`. |
+| `POST` | `/api/client-intake` | Public client inquiry form endpoint. |
+| `POST` | `/api/whatsapp/send-quotation` | Upload and send a quotation document through WhatsApp Business Cloud API. |
+
+Module slugs map to tables through `lib/module-config.ts`, so field names match the app forms.
+
 4. Start the app:
 
 ```bash

@@ -6,6 +6,7 @@ type Store = Record<string, Row[]>;
 type Filter = { op: "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "in"; column: string; value: any };
 
 const dbPath = path.join(process.cwd(), "data", "local-db.json");
+let memoryStore: Store | null = null;
 
 const seed: Store = {
   clients: [
@@ -201,6 +202,15 @@ const seed: Store = {
   ]
 };
 
+function cloneStore(store: Store) {
+  return JSON.parse(JSON.stringify(store)) as Store;
+}
+
+function memoryFallback() {
+  memoryStore ??= cloneStore(seed);
+  return cloneStore(memoryStore);
+}
+
 function ensureDb() {
   const dir = path.dirname(dbPath);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
@@ -208,13 +218,23 @@ function ensureDb() {
 }
 
 function readStore(): Store {
-  ensureDb();
-  return JSON.parse(readFileSync(dbPath, "utf8")) as Store;
+  try {
+    ensureDb();
+    return JSON.parse(readFileSync(dbPath, "utf8")) as Store;
+  } catch {
+    return memoryFallback();
+  }
 }
 
 function writeStore(store: Store) {
-  ensureDb();
-  writeFileSync(dbPath, JSON.stringify(store, null, 2));
+  memoryStore = cloneStore(store);
+  try {
+    ensureDb();
+    writeFileSync(dbPath, JSON.stringify(store, null, 2));
+  } catch {
+    // Vercel/serverless filesystems may be read-only. In that case the server
+    // fallback remains in memory; browser demo mode persists user edits.
+  }
 }
 
 function relationFor(field: string) {
